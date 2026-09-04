@@ -1,0 +1,21 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "rooms": {
+      "$roomCode": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password' && ((!data.exists() && newData.child('hostUid').val() == auth.uid) || (data.exists() && data.child('hostUid').val() == auth.uid))",
+        "joinCounter": {
+          ".write": "auth != null && root.child('rooms').child($roomCode).child('status').val() == 'waiting' && newData.isNumber() && newData.val() == (data.exists() ? data.val() + 1 : 1)"
+        },
+        "participants": {
+          "$uid": {
+            ".write": "auth != null && ((root.child('rooms').child($roomCode).child('hostUid').val() == auth.uid) || (auth.uid == $uid && ((!data.exists() && root.child('rooms').child($roomCode).child('status').val() == 'waiting') || data.exists())))",
+            ".validate": "!newData.exists() || (newData.hasChildren(['uid','name','team']) && newData.child('uid').val() == $uid && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 20 && (newData.child('team').val() == 'A' || newData.child('team').val() == 'B') && (!data.exists() || newData.child('team').val() == data.child('team').val()))"
+          }
+        }
+      }
+    }
+  }
+}
