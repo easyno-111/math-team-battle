@@ -29,7 +29,7 @@ import StudentLobby from "./components/StudentLobby";
 import { isMultipleChoiceQuestion } from "./utils/questionExcel";
 import "./App.css";
 
-const VERSION = "v0.7.3";
+const VERSION = "v0.8.0";
 const LEGACY_CATEGORY = "기존 문제";
 const CHOICE_LABELS = ["①", "②", "③", "④"];
 const DELETE_BATCH_SIZE = 400;

@@ -311,9 +311,9 @@ function SimilarQuestionGenerator({
       <section className="variant-dialog" onMouseDown={(event) => event.stopPropagation()}>
         <header className="variant-dialog-header">
           <div>
-            <span className="section-pill lavender">v0.7.3 유사문제</span>
-            <h2>{sources.length === 1 ? "이 문제와 비슷한 문제 만들기" : `선택한 ${sources.length}개 문제 일괄 변형`}</h2>
-            <p>원본과의 연결 정보는 유지하고, 확인한 문제만 문제은행에 저장합니다.</p>
+            <span className="section-pill lavender">유사문제 생성</span>
+            <h2>{sources.length === 1 ? "이 문제에서 유사문제 만들기" : `선택한 ${sources.length}개 문제 일괄 변형`}</h2>
+            <p>원본 문제의 핵심은 유지하고, AI가 새 보기·정답·해설을 다시 검증해서 만듭니다.</p>
           </div>
           <button type="button" className="variant-close-button" onClick={onClose}>닫기</button>
         </header>
@@ -322,133 +322,157 @@ function SimilarQuestionGenerator({
           <div className="variant-warning-banner">한 번에 최대 {MAX_SOURCE_COUNT}개 원본만 처리합니다. 앞의 {MAX_SOURCE_COUNT}개만 가져왔어요.</div>
         )}
 
-        <div className="variant-layout">
-          <aside className="variant-settings">
-            <div className="variant-engine-box">
-              <strong>AI 엔진</strong>
-              <button type="button" className="variant-engine-card selected">
+        <div className="variant-config-grid">
+          <section className="variant-config-card">
+            <div className="variant-config-heading">
+              <span>1</span>
+              <div><strong>AI 엔진</strong><small>현재는 무료 Gemini 사용</small></div>
+            </div>
+            <div className="ai-provider-grid variant-provider-grid">
+              <button type="button" className="ai-provider-card selected">
                 <span>무료</span>
                 <b>Gemini Flash-Lite</b>
-                <small>현재 연결된 Gemini 키 사용</small>
+                <small>현재 연결된 키 사용</small>
               </button>
-              <button type="button" className="variant-engine-card locked" disabled>
+              <button type="button" className="ai-provider-card locked" disabled>
                 <span>고급</span>
                 <b>OpenAI</b>
-                <small>Blaze 보안 점검 후 활성화</small>
+                <small>보안 준비 후 활성화</small>
               </button>
-              <p>유료 OpenAI 키는 브라우저에 저장하지 않고 서버 연결이 준비된 뒤에만 켭니다.</p>
             </div>
+          </section>
 
-            <label>
-              변형 방식
-              <select value={variantType} onChange={(event) => setVariantType(event.target.value)}>
-                {VARIANT_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-              </select>
-              <small className="variant-setting-hint">{variantMeta.hint}</small>
-            </label>
+          <section className="variant-config-card variant-type-card">
+            <div className="variant-config-heading">
+              <span>2</span>
+              <div><strong>어떻게 바꿀까요?</strong><small>{variantMeta.hint}</small></div>
+            </div>
+            <div className="variant-type-grid">
+              {VARIANT_TYPES.map((item) => (
+                <button
+                  type="button"
+                  key={item.value}
+                  className={variantType === item.value ? "selected" : ""}
+                  onClick={() => setVariantType(item.value)}
+                >
+                  <b>{item.label}</b>
+                  <small>{item.hint}</small>
+                </button>
+              ))}
+            </div>
+          </section>
 
-            <label>
-              원본 1개당 생성 수
-              <select value={safePerSourceCount} onChange={(event) => setPerSourceCount(Number(event.target.value))}>
-                {Array.from({ length: maxPerSource }, (_, index) => index + 1).map((value) => (
-                  <option key={value} value={value}>{value}개</option>
-                ))}
-              </select>
-            </label>
-
+          <section className="variant-config-card variant-count-config">
+            <div className="variant-config-heading">
+              <span>3</span>
+              <div><strong>몇 개 만들까요?</strong><small>한 번에 최대 {MAX_TOTAL_VARIANTS}문제</small></div>
+            </div>
+            <div className="variant-count-chips">
+              {Array.from({ length: maxPerSource }, (_, index) => index + 1).map((value) => (
+                <button
+                  type="button"
+                  key={value}
+                  className={safePerSourceCount === value ? "selected" : ""}
+                  onClick={() => setPerSourceCount(value)}
+                >
+                  원본당 {value}개
+                </button>
+              ))}
+            </div>
             <div className="variant-count-card">
               <span>원본 {sources.length}개</span>
-              <strong>→ 최대 {totalRequested}문제 생성</strong>
+              <strong>총 {totalRequested}문제 생성</strong>
             </div>
-
             <button type="button" className="primary-button variant-generate-button" onClick={handleGenerate} disabled={generating}>
-              {generating ? "유사문제를 만들고 있어요..." : "Gemini로 유사문제 만들기"}
+              {generating ? "유사문제를 만들고 있어요..." : `${totalRequested}개 유사문제 만들기`}
             </button>
-
-            <div className="variant-safety-note">
-              <strong>연속 호출 보호</strong>
-              <span>이 브라우저에서 분당 5회·하루 60회로 제한해 실수로 버튼을 반복 누르는 상황을 줄입니다. 보안용 하드캡은 아니에요.</span>
-            </div>
-          </aside>
-
-          <main className="variant-main">
-            <section className="variant-source-section">
-              <div className="variant-section-title">
-                <strong>원본 문제</strong>
-                <span>{sources.length}개</span>
-              </div>
-              <div className="variant-source-list">
-                {sources.map((item, index) => (
-                  <article key={item.id}>
-                    <b>{index + 1}</b>
-                    <div>
-                      <small>{getCategory(item)} · {getUnit(item)} · {item.difficulty || "보통"}</small>
-                      <MathText text={item.question} />
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </section>
-
-            {errorMessage && <div className="error-message variant-error">{errorMessage}</div>}
-
-            <section className="variant-result-section">
-              <div className="variant-section-title">
-                <div>
-                  <strong>생성 결과</strong>
-                  <small>정답과 해설을 직접 확인한 뒤 저장하세요.</small>
-                </div>
-                {generated.length > 0 && (
-                  <div className="variant-result-actions">
-                    <span>{selectedCount}개 선택</span>
-                    <button type="button" className="primary-button" onClick={handleSave} disabled={saving || selectedCount === 0}>
-                      {saving ? "저장 중..." : "선택 문제 저장"}
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {generated.length === 0 ? (
-                <div className="variant-empty">
-                  <strong>아직 만든 유사문제가 없어요.</strong>
-                  <p>왼쪽에서 변형 방식을 고른 뒤 생성 버튼을 눌러보세요.</p>
-                </div>
-              ) : (
-                <div className="variant-result-list">
-                  {generated.map((item, index) => (
-                    <article className={`variant-result-card ${item.selected ? "selected" : ""} ${item.validationError ? "invalid" : ""}`} key={item.id}>
-                      <div className="variant-result-head">
-                        <label className="soft-check">
-                          <input type="checkbox" checked={item.selected} disabled={Boolean(item.validationError)} onChange={() => toggleSelected(item.id)} />
-                          <span />
-                        </label>
-                        <b>{index + 1}</b>
-                        <div>
-                          <span>원본 {item.parentIndex}</span>
-                          <span>{item.category}</span>
-                          <span>{item.unit}</span>
-                          <span className={`difficulty-tag difficulty-${item.difficulty}`}>{item.difficulty}</span>
-                        </div>
-                      </div>
-
-                      <div className="variant-question-text"><MathText text={item.question} /></div>
-                      <div className="ai-choice-grid variant-choice-grid">
-                        {item.choices.map((choice, choiceIndex) => (
-                          <div className={item.correctOption === choiceIndex + 1 ? "correct" : ""} key={`${item.id}-${choiceIndex}`}>
-                            <b>{choiceIndex + 1}</b>
-                            <span><MathText text={choice} /></span>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="ai-explanation"><strong>해설</strong><span><MathText text={item.explanation || "해설 없음"} /></span></div>
-                      {item.validationError && <div className="ai-card-warning">{item.validationError}</div>}
-                    </article>
-                  ))}
-                </div>
-              )}
-            </section>
-          </main>
+          </section>
         </div>
+
+        <div className="variant-safety-note compact">
+          <strong>연속 클릭 보호</strong>
+          <span>이 브라우저에서 AI 요청을 분당 5회·하루 60회로 제한합니다. 생성된 문제는 자동 저장되지 않아요.</span>
+        </div>
+
+        <section className="variant-source-section">
+          <div className="variant-section-title">
+            <div>
+              <strong>원본 문제</strong>
+              <small>어떤 문제를 기준으로 변형하는지 먼저 확인하세요.</small>
+            </div>
+            <span>{sources.length}개</span>
+          </div>
+          <div className="variant-source-list">
+            {sources.map((item, index) => (
+              <article key={item.id}>
+                <b>{index + 1}</b>
+                <div>
+                  <small>{getCategory(item)} · {getUnit(item)} · {item.difficulty || "보통"}</small>
+                  <MathText text={item.question} />
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        {errorMessage && <div className="error-message variant-error">{errorMessage}</div>}
+
+        <section className="variant-result-section">
+          <div className="variant-section-title variant-result-title">
+            <div>
+              <strong>생성 결과</strong>
+              <small>정답과 해설을 직접 확인한 뒤 필요한 문제만 저장하세요.</small>
+            </div>
+            {generated.length > 0 && (
+              <div className="variant-result-actions">
+                <span>{selectedCount}개 선택</span>
+                <button type="button" className="primary-button" onClick={handleSave} disabled={saving || selectedCount === 0}>
+                  {saving ? "저장 중..." : "선택 문제 저장"}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {generated.length === 0 ? (
+            <div className="variant-empty">
+              <div className="empty-illustration">AI</div>
+              <strong>아직 만든 유사문제가 없어요.</strong>
+              <p>위에서 변형 방식과 생성 수를 고른 뒤 생성 버튼을 눌러보세요.</p>
+            </div>
+          ) : (
+            <div className="variant-result-list">
+              {generated.map((item, index) => (
+                <article className={`ai-question-card variant-result-card ${item.selected ? "selected" : ""} ${item.validationError ? "invalid" : ""}`} key={item.id}>
+                  <div className="ai-question-card-head variant-result-head">
+                    <label className="soft-check ai-question-select">
+                      <input type="checkbox" checked={item.selected} disabled={Boolean(item.validationError)} onChange={() => toggleSelected(item.id)} />
+                      <span />
+                    </label>
+                    <b className="ai-question-index">{index + 1}</b>
+                    <div className="ai-question-badges">
+                      <span>원본 {item.parentIndex}</span>
+                      <span>{item.category}</span>
+                      <span>{item.unit}</span>
+                      <span className={`difficulty-tag difficulty-${item.difficulty}`}>{item.difficulty}</span>
+                    </div>
+                  </div>
+
+                  <div className="ai-question-text"><MathText text={item.question} /></div>
+                  <div className="ai-choice-grid variant-choice-grid">
+                    {item.choices.map((choice, choiceIndex) => (
+                      <div className={item.correctOption === choiceIndex + 1 ? "correct" : ""} key={`${item.id}-${choiceIndex}`}>
+                        <b>{choiceIndex + 1}</b>
+                        <span><MathText text={choice} /></span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="ai-explanation"><strong>해설</strong><span><MathText text={item.explanation || "해설 없음"} /></span></div>
+                  {item.validationError && <div className="ai-card-warning">{item.validationError}</div>}
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
       </section>
     </div>
   );

@@ -7428,3 +7428,909 @@ body {
     justify-content: space-between;
   }
 }
+
+/* =========================================================
+   v0.7.4 · 문제은행 sticky 단원 헤더 / AI 분류 선택 / 유사문제 UI
+   ========================================================= */
+
+/* 문제 목록은 하나의 스크롤 영역을 유지하고, 펼친 단원의 제목은 위에 붙여 둔다. */
+.question-scroll-box {
+  scroll-padding-top: 10px;
+}
+
+.question-scroll-box .question-unit-group {
+  position: relative;
+  overflow: visible;
+  isolation: isolate;
+}
+
+.question-scroll-box .question-unit-header {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+  overflow: hidden;
+  border-radius: 16px;
+  background: linear-gradient(90deg, #f2eafa 0%, #eaf6f2 100%);
+  box-shadow: 0 1px 0 rgba(220, 208, 232, .95);
+}
+
+.question-scroll-box .question-unit-group.open .question-unit-header {
+  border-radius: 16px 16px 10px 10px;
+  background: linear-gradient(90deg, #eee4f7 0%, #e4f3ee 100%);
+  box-shadow: 0 7px 15px rgba(81, 67, 93, .12), 0 1px 0 #dfd5e7;
+}
+
+.question-scroll-box .question-unit-group.open .question-unit-items {
+  position: relative;
+  z-index: 1;
+  padding-top: 12px;
+  border-radius: 0 0 16px 16px;
+  background: rgba(255, 253, 250, .94);
+}
+
+.question-scroll-box .question-unit-toggle {
+  min-height: 66px;
+}
+
+.question-scroll-box .question-unit-open-label {
+  min-width: 46px;
+  text-align: center;
+  box-shadow: inset 0 0 0 1px rgba(224, 214, 232, .72);
+}
+
+/* AI 분야/주제 선택: 기존 항목은 즉시 보이고, 없는 항목만 새로 입력한다. */
+.ai-taxonomy-picker {
+  display: grid;
+  gap: 11px;
+}
+
+.ai-taxonomy-block {
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid #e9e2ed;
+  border-radius: 15px;
+  background: #fcfafc;
+}
+
+.ai-taxonomy-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ai-taxonomy-title strong {
+  color: #5d5565;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.ai-taxonomy-title span {
+  color: #9a919f;
+  font-size: 9px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.ai-taxonomy-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.ai-taxonomy-chips button,
+.ai-new-taxonomy-button {
+  min-height: 34px;
+  padding: 7px 11px;
+  border: 1px solid #e3dbe9;
+  border-radius: 11px;
+  background: #fff;
+  color: #746a7d;
+  font-size: 10px;
+  font-weight: 850;
+  transition: transform .15s ease, border-color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+
+.ai-taxonomy-chips button:hover,
+.ai-new-taxonomy-button:hover {
+  transform: translateY(-1px);
+  border-color: #cdbed9;
+}
+
+.ai-taxonomy-chips button.selected {
+  border-color: #bda8d0;
+  background: linear-gradient(135deg, #eee5f7, #e8f5f1);
+  color: #604f72;
+  box-shadow: 0 4px 11px rgba(104, 84, 122, .08);
+}
+
+.ai-new-taxonomy-button {
+  justify-self: start;
+  border-style: dashed;
+  background: #faf8fc;
+  color: #776888;
+}
+
+.ai-new-taxonomy-button.selected {
+  border-style: solid;
+  border-color: #c8b4d9;
+  background: #f2ebf8;
+}
+
+.ai-taxonomy-input {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 11px;
+  border: 1px solid #d8cde0 !important;
+  border-radius: 11px !important;
+  background: #fff !important;
+  color: #514958;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.ai-web-grounding-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 12px;
+  border: 1px solid #d7e6df;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #edf8f3, #f6fbf8);
+  color: #557267;
+}
+
+.ai-web-grounding-note > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.ai-web-grounding-note strong {
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.ai-web-grounding-note span {
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.ai-web-grounding-note > b {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #fff;
+  color: #5e7b70;
+  font-size: 9px;
+  box-shadow: inset 0 0 0 1px #d6e5df;
+}
+
+/* 유사문제 창: 기존 AI 생성실과 같은 카드/버튼 언어로 통일 */
+.variant-dialog {
+  width: min(1260px, 97vw);
+  padding: 22px;
+  background: linear-gradient(180deg, #fcfbfd, #f8f6fa);
+}
+
+.variant-config-grid {
+  display: grid;
+  grid-template-columns: .9fr 1.55fr .9fr;
+  gap: 12px;
+  align-items: stretch;
+  margin-bottom: 12px;
+}
+
+.variant-config-card {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #e8e1ed;
+  border-radius: 17px;
+  background: #fff;
+  box-shadow: 0 5px 16px rgba(80, 65, 92, .045);
+}
+
+.variant-config-heading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.variant-config-heading > span {
+  width: 27px;
+  height: 27px;
+  flex: 0 0 27px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: #eee8f5;
+  color: #745f88;
+  font-size: 10px;
+  font-weight: 950;
+}
+
+.variant-config-heading > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.variant-config-heading strong {
+  color: #554c5e;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.variant-config-heading small {
+  overflow: hidden;
+  color: #958c9b;
+  font-size: 9px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+}
+
+.variant-provider-grid {
+  margin-top: auto;
+}
+
+.variant-provider-grid .ai-provider-card {
+  min-height: 68px;
+}
+
+.variant-type-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.variant-type-grid button {
+  min-height: 58px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 3px;
+  padding: 9px 10px;
+  border: 1px solid #e6dfea;
+  border-radius: 12px;
+  background: #fff;
+  color: #6c6373;
+  text-align: left;
+  transition: transform .15s ease, border-color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+
+.variant-type-grid button:hover {
+  transform: translateY(-1px);
+  border-color: #cdbfda;
+}
+
+.variant-type-grid button.selected {
+  border-color: #bba6cf;
+  background: linear-gradient(135deg, #f1e8f8, #eaf6f2);
+  color: #5f4e70;
+  box-shadow: 0 4px 13px rgba(99, 78, 118, .08);
+}
+
+.variant-type-grid b {
+  font-size: 10px;
+  font-weight: 950;
+}
+
+.variant-type-grid small {
+  color: #978e9d;
+  font-size: 8px;
+  line-height: 1.35;
+}
+
+.variant-count-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.variant-count-chips button {
+  min-height: 34px;
+  flex: 1 1 72px;
+  padding: 7px 9px;
+  border: 1px solid #e3dce8;
+  border-radius: 10px;
+  background: #faf8fc;
+  color: #766b7e;
+  font-size: 9px;
+  font-weight: 850;
+}
+
+.variant-count-chips button.selected {
+  border-color: #bda9d0;
+  background: #eee6f7;
+  color: #665276;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.75);
+}
+
+.variant-count-config .variant-count-card {
+  margin-top: auto;
+}
+
+.variant-safety-note.compact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 9px 11px;
+}
+
+.variant-safety-note.compact span {
+  flex: 1;
+}
+
+.variant-source-section,
+.variant-result-section {
+  margin-bottom: 12px;
+  border-radius: 17px;
+  box-shadow: 0 5px 16px rgba(80, 65, 92, .04);
+}
+
+.variant-source-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-height: 210px;
+}
+
+.variant-result-section {
+  margin-bottom: 0;
+}
+
+.variant-result-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.variant-result-card {
+  min-width: 0;
+  margin: 0;
+}
+
+.variant-result-head {
+  grid-template-columns: auto auto minmax(0, 1fr);
+}
+
+.variant-result-head > b.ai-question-index {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: #eeeaf3;
+  color: #786d82;
+}
+
+.variant-result-head .ai-question-badges {
+  min-width: 0;
+}
+
+.variant-result-title {
+  position: sticky;
+  top: -16px;
+  z-index: 3;
+  padding: 8px 0;
+  background: #fff;
+}
+
+@media (max-width: 1080px) {
+  .variant-config-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .variant-type-card {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .variant-result-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .question-scroll-box .question-unit-header {
+    top: 0;
+  }
+
+  .ai-taxonomy-title,
+  .ai-web-grounding-note,
+  .variant-safety-note.compact {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ai-taxonomy-title span {
+    text-align: left;
+  }
+
+  .variant-config-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .variant-type-card {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .variant-type-grid,
+  .variant-source-list {
+    grid-template-columns: 1fr;
+  }
+
+  .variant-result-title {
+    position: static;
+  }
+}
+
+/* =========================================================
+   v0.8.0 · 배틀 애니메이션 리워크
+   준비동작 → 포물선 → 충돌 → 피격 → 줄 탄성 → 승리 연출
+   ========================================================= */
+
+.match-score.is-scoring {
+  animation: matchScorePunchV080 .62s cubic-bezier(.16,.84,.2,1) both;
+}
+
+@keyframes matchScorePunchV080 {
+  0% { transform: translateY(0) scale(1); }
+  28% { transform: translateY(-5px) scale(1.08); filter: brightness(1.05); }
+  55% { transform: translateY(1px) scale(.99); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+/* 3~4팀 토너먼트 캐릭터도 A/B와 동일한 몸통 변수와 애니메이션을 가진다. */
+.rope-student-c {
+  --shirt: #e7a17d;
+  --shirt-dark: #bf7758;
+  --skin: #efc49a;
+  --hair: #5e4d50;
+  --shoe: #72636b;
+  --tug-direction: -2px;
+}
+
+.rope-student-d {
+  --shirt: #7faadb;
+  --shirt-dark: #5c84b3;
+  --skin: #efc49a;
+  --hair: #554a56;
+  --shoe: #5c6f89;
+  --tug-direction: 2px;
+}
+
+/* 발사자는 먼저 몸을 낮추고, 앞으로 튀면서 발사한다. */
+.rope-student.is-attacking {
+  z-index: 30;
+  animation: ropeStudentAttackV080 var(--attacker-motion-duration, .72s) cubic-bezier(.18,.82,.19,1) both !important;
+}
+
+.rope-side-left.is-attacking {
+  --attack-windup-x: -9px;
+  --attack-release-x: 7px;
+  --attack-recover-x: 2px;
+  --attack-tilt: -7deg;
+}
+
+.rope-side-right.is-attacking {
+  --attack-windup-x: 9px;
+  --attack-release-x: -7px;
+  --attack-recover-x: -2px;
+  --attack-tilt: 7deg;
+}
+
+@keyframes ropeStudentAttackV080 {
+  0% {
+    transform: translate(-50%, -62%) scale(var(--char-scale, 1));
+  }
+  24% {
+    transform: translate(-50%, -54%) translateX(var(--attack-windup-x)) rotate(var(--attack-tilt)) scaleX(1.04) scaleY(.9) scale(var(--char-scale, 1));
+  }
+  43% {
+    transform: translate(-50%, -78%) translateX(var(--attack-release-x)) rotate(0deg) scaleX(.96) scaleY(1.06) scale(var(--char-scale, 1));
+  }
+  65% {
+    transform: translate(-50%, -66%) translateX(var(--attack-recover-x)) scale(var(--char-scale, 1));
+  }
+  100% {
+    transform: translate(-50%, -62%) scale(var(--char-scale, 1));
+  }
+}
+
+.rope-student-action {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 30px);
+  z-index: 35;
+  min-width: 72px;
+  padding: 5px 8px;
+  border: 2px solid rgba(255,255,255,.86);
+  border-radius: 11px;
+  background: rgba(255,250,245,.96);
+  box-shadow: 0 8px 18px rgba(73,58,80,.16);
+  transform: translateX(-50%);
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: attackerBadgeV080 .88s cubic-bezier(.15,.78,.2,1) both;
+}
+
+.rope-student-action strong,
+.rope-student-action span {
+  display: block;
+}
+
+.rope-student-action strong {
+  color: #b76760;
+  font-size: 16px;
+  font-weight: 1000;
+  line-height: 1;
+}
+
+.rope-student-action span {
+  margin-top: 2px;
+  color: #75667e;
+  font-size: 8px;
+  font-weight: 950;
+}
+
+.rope-student-action.action-super,
+.rope-student-action.action-fever {
+  background: linear-gradient(135deg, rgba(255,246,222,.97), rgba(247,237,255,.97));
+  box-shadow: 0 8px 22px rgba(111,74,77,.19), 0 0 0 5px rgba(255,220,158,.12);
+}
+
+@keyframes attackerBadgeV080 {
+  0% { transform: translateX(-50%) translateY(8px) scale(.55); opacity: 0; }
+  24% { transform: translateX(-50%) translateY(0) scale(1.12); opacity: 1; }
+  70% { transform: translateX(-50%) scale(1); opacity: 1; }
+  100% { transform: translateX(-50%) translateY(-6px) scale(.94); opacity: 0; }
+}
+
+/* 충전 이펙트는 실제 발사 직전까지만 보인다. */
+.attack-charge span,
+.attack-charge i {
+  animation-duration: var(--windup-duration, .24s) !important;
+}
+
+/* 미사일/포탄은 준비동작 후에 출발하며 각 타입의 비행시간을 사용한다. */
+.battle-projectile {
+  animation-delay: var(--projectile-delay, .22s) !important;
+  animation-duration: var(--projectile-duration, .68s) !important;
+  animation-timing-function: cubic-bezier(.2,.58,.24,1) !important;
+}
+
+@keyframes battleProjectileArcV063 {
+  0% {
+    left: var(--attack-start-x);
+    top: var(--attack-start-y);
+    transform: translate(-50%, -50%) scale(.58) rotate(-18deg);
+    opacity: 0;
+  }
+  9% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(.88) rotate(-7deg);
+  }
+  48% {
+    left: var(--attack-mid-x);
+    top: var(--attack-peak-y, 20%);
+    transform: translate(-50%, -50%) scale(1.16) rotate(19deg);
+    opacity: 1;
+  }
+  82% { opacity: 1; }
+  100% {
+    left: var(--attack-end-x);
+    top: var(--attack-end-y);
+    transform: translate(-50%, -50%) scale(.72) rotate(43deg);
+    opacity: 0;
+  }
+}
+
+/* 피격은 투사체가 도착한 시점에 시작한다. A/B/C/D가 아니라 화면 좌우 기준이라 토너먼트도 동일하게 동작한다. */
+.rope-student.is-hit {
+  z-index: 34;
+  animation-delay: var(--impact-delay, .8s) !important;
+  animation-duration: .5s !important;
+  animation-timing-function: cubic-bezier(.12,.75,.2,1) !important;
+  animation-fill-mode: both !important;
+}
+
+.rope-side-left.is-hit {
+  animation-name: ropeStudentHitLeftV080 !important;
+}
+
+.rope-side-right.is-hit {
+  animation-name: ropeStudentHitRightV080 !important;
+}
+
+@keyframes ropeStudentHitLeftV080 {
+  0% { transform: translate(-50%, -62%) scale(var(--char-scale, 1)); filter: brightness(1); }
+  12% { transform: translate(-50%, -63%) translateX(-9px) scale(1.08) scale(var(--char-scale, 1)); filter: brightness(1.3); }
+  38% { transform: translate(calc(-50% - 58px), calc(-62% - 66px)) rotate(-31deg) scale(var(--char-scale, 1)); }
+  58% { transform: translate(calc(-50% - 72px), calc(-62% - 24px)) rotate(-47deg) scale(var(--char-scale, 1)); }
+  74% { transform: translate(calc(-50% - 28px), calc(-62% + 4px)) rotate(9deg) scaleX(1.08) scaleY(.9) scale(var(--char-scale, 1)); }
+  88% { transform: translate(calc(-50% - 7px), calc(-62% - 7px)) rotate(-3deg) scale(var(--char-scale, 1)); }
+  100% { transform: translate(-50%, -62%) scale(var(--char-scale, 1)); filter: brightness(1); }
+}
+
+@keyframes ropeStudentHitRightV080 {
+  0% { transform: translate(-50%, -62%) scale(var(--char-scale, 1)); filter: brightness(1); }
+  12% { transform: translate(-50%, -63%) translateX(9px) scale(1.08) scale(var(--char-scale, 1)); filter: brightness(1.3); }
+  38% { transform: translate(calc(-50% + 58px), calc(-62% - 66px)) rotate(31deg) scale(var(--char-scale, 1)); }
+  58% { transform: translate(calc(-50% + 72px), calc(-62% - 24px)) rotate(47deg) scale(var(--char-scale, 1)); }
+  74% { transform: translate(calc(-50% + 28px), calc(-62% + 4px)) rotate(-9deg) scaleX(1.08) scaleY(.9) scale(var(--char-scale, 1)); }
+  88% { transform: translate(calc(-50% + 7px), calc(-62% - 7px)) rotate(3deg) scale(var(--char-scale, 1)); }
+  100% { transform: translate(-50%, -62%) scale(var(--char-scale, 1)); filter: brightness(1); }
+}
+
+/* 충돌, 충격파, 대형 링의 타이밍을 한 지점으로 통일한다. */
+.battle-impact span,
+.battle-impact i {
+  animation-delay: var(--impact-delay, .8s) !important;
+  animation-duration: .46s !important;
+}
+
+.impact-style-rocket span,
+.impact-style-rocket i,
+.impact-style-barrage span,
+.impact-style-barrage i,
+.impact-style-fever span,
+.impact-style-fever i {
+  animation-duration: .56s !important;
+}
+
+.battle-impact b {
+  animation-delay: var(--impact-delay, .8s) !important;
+  animation-duration: .52s !important;
+}
+
+.battle-shockwave {
+  animation-delay: var(--impact-delay, .8s) !important;
+  animation-duration: .56s !important;
+}
+
+.battle-impact-sparks {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.battle-impact-sparks em {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 8px;
+  height: 4px;
+  border-radius: 999px;
+  background: #ffe19c;
+  box-shadow: 0 0 8px rgba(255,195,111,.7);
+  transform-origin: 0 50%;
+  opacity: 0;
+  animation: impactSparkV080 .48s var(--spark-delay, .8s) ease-out both;
+}
+
+.battle-impact-sparks em:nth-child(3n+2) { background: #f8b5ab; }
+.battle-impact-sparks em:nth-child(3n) { background: #dbc8ff; }
+
+@keyframes impactSparkV080 {
+  0% { transform: rotate(var(--spark-angle)) translateX(2px) scale(.35); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: rotate(var(--spark-angle)) translateX(var(--spark-distance)) scale(.9); opacity: 0; }
+}
+
+/* 명중하는 순간 줄이 한 번 더 넘어갔다가 돌아오는 탄성을 준다. */
+.battle-stage.attack-active .battle-rope,
+.battle-stage.attack-active .battle-rope-shadow {
+  animation: ropeImpactSnapV080 .44s var(--impact-delay, .8s) cubic-bezier(.14,.72,.22,1) both;
+}
+
+@keyframes ropeImpactSnapV080 {
+  0% { transform: translateX(var(--rope-shift)); }
+  28% { transform: translateX(calc(var(--rope-shift) + var(--impact-nudge))); }
+  58% { transform: translateX(calc(var(--rope-shift) + var(--impact-rebound))); }
+  78% { transform: translateX(calc(var(--rope-shift) + 1px)); }
+  100% { transform: translateX(var(--rope-shift)); }
+}
+
+.battle-stage.attack-active .battle-character-layer {
+  animation: characterLineSnapV080 .4s var(--impact-delay, .8s) cubic-bezier(.14,.72,.22,1) both;
+}
+
+@keyframes characterLineSnapV080 {
+  0% { transform: translateX(var(--character-shift)); }
+  30% { transform: translateX(calc(var(--character-shift) + var(--character-impact-nudge))); }
+  60% { transform: translateX(calc(var(--character-shift) + var(--character-impact-rebound))); }
+  100% { transform: translateX(var(--character-shift)); }
+}
+
+.battle-stage.attack-active .battle-rope-knot {
+  animation: ropeKnotKickV080 .46s var(--impact-delay, .8s) cubic-bezier(.13,.79,.2,1) both;
+}
+
+@keyframes ropeKnotKickV080 {
+  0% { transform: translate(-50%, -50%) rotate(45deg) scale(1); }
+  28% { transform: translate(-50%, -50%) rotate(55deg) scale(1.16); }
+  58% { transform: translate(-50%, -50%) rotate(39deg) scale(.94); }
+  100% { transform: translate(-50%, -50%) rotate(45deg) scale(1); }
+}
+
+/* 큰 공격의 화면 흔들림도 충돌 순간에 맞춘다. */
+.battle-stage.attack-rocket,
+.battle-stage.attack-barrage,
+.battle-stage.attack-fever {
+  animation-delay: var(--impact-delay, .8s) !important;
+}
+
+.battle-stage.attack-rocket { animation-duration: .34s !important; }
+.battle-stage.attack-barrage { animation-duration: .5s !important; }
+.battle-stage.attack-fever { animation-duration: .62s !important; }
+
+/* 10콤보는 같은 팀 캐릭터들이 함께 앞으로 튀어나오는 느낌을 준다. */
+.rope-student.fever-support:not(.is-attacking):not(.is-hit) {
+  z-index: 19;
+  animation: feverSupportHopV080 .72s cubic-bezier(.18,.8,.2,1) both !important;
+}
+
+.rope-side-left.fever-support { --fever-step: 7px; }
+.rope-side-right.fever-support { --fever-step: -7px; }
+
+@keyframes feverSupportHopV080 {
+  0% { transform: translate(-50%, -62%) scale(var(--char-scale, 1)); }
+  35% { transform: translate(-50%, -73%) translateX(var(--fever-step)) scale(var(--char-scale, 1)); }
+  58% { transform: translate(-50%, -64%) translateX(var(--fever-step)) scale(var(--char-scale, 1)); }
+  100% { transform: translate(-50%, -62%) scale(var(--char-scale, 1)); }
+}
+
+.team-fever-flash {
+  animation-duration: 1.28s !important;
+}
+
+/* 종료 시: FINISH → 승리팀 카드 → 승리팀 점프 + 가벼운 색종이 */
+.battle-victory-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  pointer-events: none;
+}
+
+.battle-finish-word {
+  position: absolute;
+  left: 50%;
+  top: 28%;
+  padding: 7px 16px;
+  border: 2px solid rgba(255,255,255,.88);
+  border-radius: 999px;
+  background: rgba(77,66,82,.87);
+  color: white;
+  font-size: clamp(16px, 2.3vw, 28px);
+  font-weight: 1000;
+  letter-spacing: .12em;
+  transform: translate(-50%, -50%);
+  animation: finishWordV080 .75s ease-out both;
+}
+
+@keyframes finishWordV080 {
+  0% { transform: translate(-50%, -50%) scale(1.7); opacity: 0; letter-spacing: .25em; }
+  25% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  68% { opacity: 1; }
+  100% { transform: translate(-50%, -58%) scale(.9); opacity: 0; }
+}
+
+.battle-victory-card {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  min-width: 230px;
+  padding: 13px 24px 15px;
+  border: 3px solid rgba(255,255,255,.92);
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(255,247,220,.97), rgba(247,239,255,.97));
+  box-shadow: 0 18px 38px rgba(71,56,79,.2), 0 0 0 8px rgba(255,228,166,.12);
+  transform: translate(-50%, -50%);
+  text-align: center;
+  opacity: 0;
+  animation: victoryCardV080 1.65s .48s cubic-bezier(.15,.78,.2,1) both;
+}
+
+.battle-victory-card small,
+.battle-victory-card strong {
+  display: block;
+}
+
+.battle-victory-card small {
+  color: #776d7d;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.battle-victory-card strong {
+  margin-top: 2px;
+  color: #a45f69;
+  font-size: clamp(30px, 5vw, 58px);
+  font-weight: 1000;
+  letter-spacing: -.06em;
+}
+
+@keyframes victoryCardV080 {
+  0% { transform: translate(-50%, -42%) scale(.52) rotate(-3deg); opacity: 0; }
+  20% { transform: translate(-50%, -50%) scale(1.12) rotate(1deg); opacity: 1; }
+  42% { transform: translate(-50%, -50%) scale(.98); opacity: 1; }
+  78% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -58%) scale(.94); opacity: 0; }
+}
+
+.battle-confetti {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.battle-confetti i {
+  position: absolute;
+  left: var(--confetti-x);
+  top: 16%;
+  width: 8px;
+  height: 14px;
+  border-radius: 3px;
+  background: #e2b3a8;
+  opacity: 0;
+  transform: rotate(var(--confetti-rotate));
+  animation: confettiFallV080 1.65s calc(.52s + var(--confetti-delay)) cubic-bezier(.18,.68,.22,1) both;
+}
+
+.battle-confetti i:nth-child(4n+2) { background: #c9b5e5; }
+.battle-confetti i:nth-child(4n+3) { background: #acd6c5; }
+.battle-confetti i:nth-child(4n) { background: #f0cf8c; }
+
+@keyframes confettiFallV080 {
+  0% { transform: translate3d(0,-20px,0) rotate(var(--confetti-rotate)) scale(.5); opacity: 0; }
+  14% { opacity: 1; }
+  100% { transform: translate3d(18px,240px,0) rotate(380deg) scale(1); opacity: 0; }
+}
+
+.match-celebration.winner-a .rope-student-a,
+.match-celebration.winner-b .rope-student-b,
+.match-celebration.winner-c .rope-student-c,
+.match-celebration.winner-d .rope-student-d {
+  animation: winnerHopV080 .72s .7s cubic-bezier(.18,.78,.2,1) 2 both !important;
+}
+
+@keyframes winnerHopV080 {
+  0%,100% { transform: translate(-50%, -62%) scale(var(--char-scale, 1)); }
+  44% { transform: translate(-50%, -88%) rotate(-2deg) scale(var(--char-scale, 1)); }
+  62% { transform: translate(-50%, -60%) scaleX(1.06) scaleY(.92) scale(var(--char-scale, 1)); }
+}
+
+@media (max-width: 760px) {
+  .rope-student-action {
+    bottom: calc(100% + 24px);
+    min-width: 62px;
+    padding: 4px 6px;
+  }
+
+  .rope-student-action strong { font-size: 14px; }
+  .battle-victory-card { min-width: 190px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .match-score.is-scoring,
+  .rope-student-action,
+  .rope-student.fever-support,
+  .battle-victory-overlay *,
+  .battle-impact-sparks em,
+  .battle-stage.attack-active .battle-rope,
+  .battle-stage.attack-active .battle-rope-shadow,
+  .battle-stage.attack-active .battle-character-layer,
+  .battle-stage.attack-active .battle-rope-knot {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

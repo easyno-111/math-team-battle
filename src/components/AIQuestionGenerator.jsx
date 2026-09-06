@@ -33,8 +33,6 @@ const MODE_TYPE_LABELS = {
   free: ["기본형", "응용형", "창의형"],
 };
 
-const DEFAULT_CATEGORY_OPTIONS = ["공통수학2", "상식퀴즈", "넌센스퀴즈", "한국사", "과학", "영어", "자유퀴즈"];
-
 const QUESTION_SCHEMA = {
   type: "object",
   properties: {
@@ -133,6 +131,20 @@ function validateQuestion(item) {
   return "";
 }
 
+function extractGroundingSources(response) {
+  const chunks = response?.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+  const seen = new Set();
+  const result = [];
+  chunks.forEach((chunk) => {
+    const uri = String(chunk?.web?.uri || "").trim();
+    const title = String(chunk?.web?.title || "").trim();
+    if (!uri || seen.has(uri)) return;
+    seen.add(uri);
+    result.push({ uri, title });
+  });
+  return result.slice(0, 8);
+}
+
 function getErrorMessage(error) {
   if (isClientAiRateLimitError(error)) return error.message;
   const message = String(error?.message || "");
@@ -144,6 +156,9 @@ function getErrorMessage(error) {
   }
   if (/403|permission/i.test(message)) {
     return "이 API 키 또는 Google Cloud 프로젝트에 Gemini 사용 권한이 없습니다.";
+  }
+  if (/Google search grounding returned no reference/i.test(message)) {
+    return "넌센스 문제용 Google 검색 결과를 가져오지 못했습니다. 잠시 후 다시 생성해보세요.";
   }
   if (/404|not found|model/i.test(message)) {
     return "선택한 Gemini 모델을 사용할 수 없습니다. 다른 Flash-Lite 모델로 바꿔보세요.";
@@ -196,6 +211,8 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
   const [quizMode, setQuizMode] = useState("academic");
   const [category, setCategory] = useState("공통수학2");
   const [unit, setUnit] = useState(questionUnits[0] || "도형의 방정식");
+  const [customCategoryMode, setCustomCategoryMode] = useState(false);
+  const [customUnitMode, setCustomUnitMode] = useState(false);
   const [difficulty, setDifficulty] = useState("보통");
   const [count, setCount] = useState(10);
   const [types, setTypes] = useState({ first: true, second: true, third: true });
@@ -207,6 +224,7 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
+  const [groundingSources, setGroundingSources] = useState([]);
 
   const selectedCount = useMemo(
     () => generated.filter((item) => item.selected && !item.validationError).length,
@@ -223,20 +241,45 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
     [generated]
   );
 
-  const categoryOptions = useMemo(() => {
-    return [...new Set([...DEFAULT_CATEGORY_OPTIONS, ...questionCategories])].filter(Boolean);
-  }, [questionCategories]);
+  const categoryOptions = useMemo(() => (
+    [...new Set(questionCategories.map((item) => String(item || "").trim()).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, "ko"))
+  ), [questionCategories]);
 
   const unitOptions = useMemo(() => {
     const matching = questions
       .filter((item) => String(item.category || item.subject || "기존 문제").trim() === category.trim())
       .map((item) => String(item.unit || "").trim())
       .filter(Boolean);
-    return [...new Set([...matching, ...questionUnits])].sort((a, b) => a.localeCompare(b, "ko"));
-  }, [category, questionUnits, questions]);
+    return [...new Set(matching)].sort((a, b) => a.localeCompare(b, "ko"));
+  }, [category, questions]);
 
   const modeMeta = QUIZ_MODES.find((item) => item.value === quizMode) || QUIZ_MODES[0];
   const typeLabels = MODE_TYPE_LABELS[quizMode] || MODE_TYPE_LABELS.academic;
+
+  const selectExistingCategory = (value) => {
+    const nextCategory = String(value || "").trim();
+    setCategory(nextCategory);
+    setCustomCategoryMode(false);
+    const firstUnit = questions
+      .filter((item) => String(item.category || item.subject || "기존 문제").trim() === nextCategory)
+      .map((item) => String(item.unit || "").trim())
+      .find(Boolean) || "";
+    setUnit(firstUnit);
+    setCustomUnitMode(false);
+  };
+
+  const startNewCategory = () => {
+    setCustomCategoryMode(true);
+    setCustomUnitMode(true);
+    setCategory("");
+    setUnit("");
+  };
+
+  const startNewUnit = () => {
+    setCustomUnitMode(true);
+    setUnit("");
+  };
 
   const notify = (text) => {
     setStatusMessage(text);
@@ -288,7 +331,7 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
     setTypes((current) => ({ ...current, [name]: !current[name] }));
   };
 
-  const buildPrompt = (desiredCount) => {
+  const buildPrompt = (desiredCount, webReference = "") => {
     const selectedTypes = [
       types.first ? typeLabels[0] : "",
       types.second ? typeLabels[1] : "",
@@ -310,7 +353,7 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
       general:
         `상식 퀴즈입니다. 널리 확인 가능한 사실을 바탕으로 하며 정답이 명확히 하나인 문제만 만드세요. 시대에 따라 쉽게 바뀌는 정보나 논쟁적인 사실은 피하세요.`,
       nonsense:
-        `한국어 넌센스 퀴즈입니다. 말장난, 수수께끼, 언어유희를 활용하되 억지스럽거나 정답이 여러 개인 문제는 피하세요. 해설에는 왜 그 답이 되는지 짧게 설명하세요.`,
+        `한국어 넌센스 퀴즈입니다. AI가 새 말장난을 지어내지 말고, 먼저 Google 검색으로 확인한 실제 넌센스 퀴즈·수수께끼 후보에서만 골라 교실용 4지선다로 재구성하세요. 정답이 납득되지 않거나 출처마다 답이 다른 문제는 버리세요.`,
       free:
         `자유 주제 퀴즈입니다. 사용자가 지정한 분야와 주제를 충실히 따르고, 각 문제의 정답은 반드시 하나만 성립하도록 만드세요.`,
     }[quizMode] || "정답이 하나인 4지선다 퀴즈를 만드세요.";
@@ -332,8 +375,17 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
       (avoidDuplicates && sameTopicQuestions
         ? `10. 아래 기존 문제들과 숫자나 표현만 조금 바꾼 수준의 중복 문제는 피하세요.\n[기존 문제]\n${sameTopicQuestions}\n`
         : "") +
+      (quizMode === "nonsense" && webReference
+        ? `\n[Google 검색으로 확인한 넌센스 후보 자료]\n${webReference}\n\n중요: 위 검색 자료 안에서 확인되는 문제·정답만 사용하세요. 원문을 길게 복사하지 말고 교실용으로 자연스럽게 다듬되, 핵심 말장난과 정답을 새로 발명하거나 바꾸지 마세요. 자료에 없는 새 넌센스 문제는 만들지 마세요.\n`
+        : "") +
       `\n요청한 ${desiredCount}문제를 정확히 생성하세요.`;
   };
+
+  const buildNonsenseSearchPrompt = (desiredCount) => `Google 검색을 사용해 한국어 넌센스 퀴즈·아재개그·말장난 수수께끼 자료를 찾아주세요.\n` +
+    `목표는 '${unit}' 주제에 활용할 교실용 문제 ${desiredCount}개를 만들 수 있도록 신뢰할 만한 기존 후보를 수집하는 것입니다.\n` +
+    `여러 검색 결과를 확인하고, 실제 웹에서 문제와 정답이 확인되는 후보만 간단히 '문제 | 정답 | 왜 그런지' 형식으로 정리하세요.\n` +
+    `억지로 새 문제를 창작하지 마세요. 정답이 여러 개로 해석되거나 출처마다 정답이 다른 문제, 성인·혐오·정치·비하 소재는 제외하세요.\n` +
+    `최소 ${Math.max(desiredCount * 2, 12)}개 정도의 후보를 찾아 중복을 제거하세요. 원문 페이지를 길게 복사하지 말고 핵심만 짧게 정리하세요.`;
 
   const handleGenerate = async () => {
     if (!apiKey.trim()) {
@@ -358,13 +410,47 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
       persistSettings();
       checkAndRecordAiRequest();
       const ai = getClient();
+      let webReference = "";
+
+      if (quizMode === "nonsense") {
+        notify("Google 검색에서 실제 넌센스 문제를 찾고 있어요...");
+        let searchResponse;
+        try {
+          searchResponse = await ai.models.generateContent({
+            model,
+            contents: buildNonsenseSearchPrompt(safeCount),
+            config: {
+              tools: [{ googleSearch: {} }],
+              temperature: 0.15,
+            },
+          });
+        } catch (searchError) {
+          if (model === "gemini-2.5-flash-lite") throw searchError;
+          notify("현재 모델의 검색 연결이 맞지 않아 검색 지원 Flash-Lite로 한 번 더 확인하고 있어요...");
+          searchResponse = await ai.models.generateContent({
+            model: "gemini-2.5-flash-lite",
+            contents: buildNonsenseSearchPrompt(safeCount),
+            config: {
+              tools: [{ googleSearch: {} }],
+              temperature: 0.15,
+            },
+          });
+        }
+        webReference = String(searchResponse.text || "").trim();
+        const sources = extractGroundingSources(searchResponse);
+        setGroundingSources(sources);
+        if (!webReference) throw new Error("Google search grounding returned no reference");
+      } else {
+        setGroundingSources([]);
+      }
+
       const response = await ai.models.generateContent({
         model,
-        contents: buildPrompt(safeCount),
+        contents: buildPrompt(safeCount, webReference),
         config: {
           responseMimeType: "application/json",
           responseSchema: QUESTION_SCHEMA,
-          temperature: 0.7,
+          temperature: quizMode === "nonsense" ? 0.25 : 0.7,
         },
       });
 
@@ -505,8 +591,10 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
           unit: item.unit.trim(),
           difficulty: item.difficulty,
           enabled: true,
-          source: "gemini-ai",
+          source: quizMode === "nonsense" ? "gemini-ai-web-grounded" : "gemini-ai",
+          aiProvider: "gemini",
           aiModel: model,
+          searchGrounded: quizMode === "nonsense",
           createdBy: user.uid,
           createdAt: serverTimestamp(),
         });
@@ -648,7 +736,10 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
                     type="button"
                     key={item.value}
                     className={quizMode === item.value ? "selected" : ""}
-                    onClick={() => setQuizMode(item.value)}
+                    onClick={() => {
+                      setQuizMode(item.value);
+                      setGroundingSources([]);
+                    }}
                   >
                     <b>{item.label}</b>
                     <span>{item.hint}</span>
@@ -657,31 +748,85 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
               </div>
             </div>
 
-            <label>
-              분야 / 과목 <span className="ai-direct-input-hint">직접 입력 가능</span>
-              <input
-                list="ai-category-options"
-                value={category}
-                onChange={(event) => setCategory(event.target.value)}
-                placeholder="예: 공통수학2, 상식퀴즈, 넌센스퀴즈"
-              />
-              <datalist id="ai-category-options">
-                {categoryOptions.map((item) => <option key={item} value={item} />)}
-              </datalist>
-            </label>
+            <div className="ai-taxonomy-picker">
+              <div className="ai-taxonomy-block">
+                <div className="ai-taxonomy-title">
+                  <strong>분야 / 과목</strong>
+                  <span>문제은행에 있는 분야를 바로 선택</span>
+                </div>
+                {categoryOptions.length > 0 && (
+                  <div className="ai-taxonomy-chips">
+                    {categoryOptions.map((item) => (
+                      <button
+                        type="button"
+                        key={item}
+                        className={category === item && !customCategoryMode ? "selected" : ""}
+                        onClick={() => selectExistingCategory(item)}
+                      >
+                        {item}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <button type="button" className={`ai-new-taxonomy-button ${customCategoryMode ? "selected" : ""}`} onClick={startNewCategory}>
+                  + 새 분야 직접 입력
+                </button>
+                {(customCategoryMode || !categoryOptions.length) && (
+                  <input
+                    className="ai-taxonomy-input"
+                    value={category}
+                    onChange={(event) => setCategory(event.target.value)}
+                    placeholder="예: 상식퀴즈, 세계사, 학교축제퀴즈"
+                    autoFocus={customCategoryMode}
+                  />
+                )}
+              </div>
 
-            <label>
-              주제 / 단원 <span className="ai-direct-input-hint">새 주제도 바로 입력</span>
-              <input
-                list="ai-unit-options"
-                value={unit}
-                onChange={(event) => setUnit(event.target.value)}
-                placeholder="예: 원의 방정식, 세계 상식, 말장난"
-              />
-              <datalist id="ai-unit-options">
-                {unitOptions.map((item) => <option key={item} value={item} />)}
-              </datalist>
-            </label>
+              <div className="ai-taxonomy-block">
+                <div className="ai-taxonomy-title">
+                  <strong>주제 / 단원</strong>
+                  <span>{category.trim() ? `'${category}'에 저장된 주제` : "먼저 분야를 선택하거나 입력하세요"}</span>
+                </div>
+                {unitOptions.length > 0 && !customCategoryMode && (
+                  <div className="ai-taxonomy-chips">
+                    {unitOptions.map((item) => (
+                      <button
+                        type="button"
+                        key={item}
+                        className={unit === item && !customUnitMode ? "selected" : ""}
+                        onClick={() => {
+                          setUnit(item);
+                          setCustomUnitMode(false);
+                        }}
+                      >
+                        {item}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <button type="button" className={`ai-new-taxonomy-button ${customUnitMode ? "selected" : ""}`} onClick={startNewUnit}>
+                  + 새 주제 직접 입력
+                </button>
+                {(customUnitMode || !unitOptions.length || customCategoryMode) && (
+                  <input
+                    className="ai-taxonomy-input"
+                    value={unit}
+                    onChange={(event) => setUnit(event.target.value)}
+                    placeholder="예: 세계 여러 나라, 원의 방정식, 말장난"
+                  />
+                )}
+              </div>
+            </div>
+
+            {quizMode === "nonsense" && (
+              <div className="ai-web-grounding-note">
+                <div>
+                  <strong>Google 검색 기반 넌센스</strong>
+                  <span>AI가 임의로 말장난을 만들지 않고, 웹에서 실제 문제·정답을 먼저 확인한 뒤 4지선다로 재구성합니다.</span>
+                </div>
+                {groundingSources.length > 0 && <b>검색 출처 {groundingSources.length}곳 참고</b>}
+              </div>
+            )}
 
             <div className="form-row">
               <label>
