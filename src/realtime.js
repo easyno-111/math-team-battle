@@ -1,6 +1,6 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
 import {
-  browserLocalPersistence,
+  browserSessionPersistence,
   getAuth,
   setPersistence,
 } from "firebase/auth";
@@ -40,5 +40,5 @@ export const studentRealtime = realtimeReady
 // 교사 로그인과 학생 익명 로그인이 같은 브라우저에서도 서로 영향을 주지 않도록
 // 학생 전용 Firebase App을 따로 사용한다.
 export async function prepareStudentAuthPersistence() {
-  await setPersistence(studentAuth, browserLocalPersistence);
+  await setPersistence(studentAuth, browserSessionPersistence);
 }

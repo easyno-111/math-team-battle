@@ -2,9 +2,20 @@ import * as XLSX from "@keep-lts/xlsx";
 
 export const QUESTION_DIFFICULTIES = ["쉬움", "보통", "어려움", "도전"];
 export const TEMPLATE_SHEET_NAME = "문제은행";
-export const TEMPLATE_FILE_NAME = "수학팀배틀_문제등록양식.xlsx";
+export const TEMPLATE_FILE_NAME = "팀퀴즈배틀_객관식_문제등록양식.xlsx";
 
-const REQUIRED_HEADERS = ["단원", "난이도", "문제", "정답"];
+const REQUIRED_HEADERS = [
+  "단원",
+  "난이도",
+  "문제",
+  "보기1",
+  "보기2",
+  "보기3",
+  "보기4",
+  "정답번호",
+];
+const OPTIONAL_HEADERS = ["해설"];
+const TEMPLATE_HEADERS = ["분야/과목", ...REQUIRED_HEADERS, ...OPTIONAL_HEADERS];
 const MAX_IMPORT_ROWS = 5000;
 
 function cleanText(value) {
@@ -16,55 +27,88 @@ function normalizeHeader(value) {
   return cleanText(value).replace(/\s+/g, "");
 }
 
-export function normalizeQuestionKey(question, answer) {
-  const normalize = (value) =>
-    cleanText(value)
-      .normalize("NFKC")
-      .replace(/\s+/g, "")
-      .toLowerCase();
+function normalizeComparable(value) {
+  return cleanText(value)
+    .normalize("NFKC")
+    .replace(/\s+/g, "")
+    .toLocaleLowerCase("ko");
+}
 
-  return `${normalize(question)}::${normalize(answer)}`;
+export function isMultipleChoiceQuestion(question) {
+  const choices = Array.isArray(question?.choices) ? question.choices : [];
+  const correctOption = Number(question?.correctOption);
+
+  return (
+    question?.type === "multiple-choice" &&
+    choices.length === 4 &&
+    choices.every((choice) => cleanText(choice)) &&
+    Number.isInteger(correctOption) &&
+    correctOption >= 1 &&
+    correctOption <= 4
+  );
+}
+
+export function normalizeQuestionKey(question, choices, correctOption) {
+  const normalizedQuestion = normalizeComparable(question);
+  const normalizedChoices = choices.map(normalizeComparable);
+  const correctAnswer = normalizedChoices[Number(correctOption) - 1] || "";
+
+  return `${normalizedQuestion}::${[...normalizedChoices].sort().join("|")}::${correctAnswer}`;
 }
 
 export function downloadQuestionTemplate() {
   const workbook = XLSX.utils.book_new();
 
-  const questionSheet = XLSX.utils.aoa_to_sheet([
-    REQUIRED_HEADERS,
-  ]);
+  const questionSheet = XLSX.utils.aoa_to_sheet([TEMPLATE_HEADERS]);
 
   questionSheet["!cols"] = [
+    { wch: 18 },
     { wch: 20 },
     { wch: 12 },
     { wch: 58 },
-    { wch: 34 },
+    { wch: 28 },
+    { wch: 28 },
+    { wch: 28 },
+    { wch: 28 },
+    { wch: 12 },
+    { wch: 58 },
   ];
-  questionSheet["!autofilter"] = { ref: "A1:D1" };
+  questionSheet["!autofilter"] = { ref: "A1:J1" };
 
   const guideRows = [
-    ["수학 팀 배틀 문제 일괄 등록 안내"],
+    ["수학 팀 배틀 4지선다 문제 일괄 등록 안내"],
     [],
     ["항목", "내용"],
     ["작성 시트", `'${TEMPLATE_SHEET_NAME}' 시트에 문제를 입력하세요.`],
-    ["필수 열", "단원 / 난이도 / 문제 / 정답"],
+    ["분야/과목", "공통수학2, 상식퀴즈, 넌센스퀴즈처럼 큰 분류를 입력합니다. 비워두면 '기존 문제'로 저장됩니다."],
+    ["필수 열", "단원 / 난이도 / 문제 / 보기1 / 보기2 / 보기3 / 보기4 / 정답번호"],
+    ["선택 열", "분야/과목과 해설은 비워두어도 됩니다."],
     ["난이도", QUESTION_DIFFICULTIES.join(" / ")],
+    ["정답번호", "보기1이 정답이면 1, 보기2가 정답이면 2처럼 1~4의 숫자로 입력하세요."],
+    ["보기", "보기 네 개는 모두 입력해야 하며 서로 같은 보기는 사용할 수 없습니다."],
     ["수식", "x^2, x_1처럼 입력해도 됩니다. 앱 화면에서 위첨자/아래첨자로 표시됩니다."],
-    ["주의", "문제은행 시트의 첫 번째 행(단원·난이도·문제·정답)은 수정하거나 삭제하지 마세요."],
-    ["주의", "문제나 정답이 = 기호로 시작하면 Excel이 수식으로 인식할 수 있으니 맨 앞에 작은따옴표(')를 붙여 입력하세요."],
-    ["중복", "이미 등록된 문제와 정답이 완전히 같은 행은 자동으로 건너뜁니다."],
+    ["주의", "문제은행 시트의 첫 번째 행 제목은 수정하거나 삭제하지 마세요."],
+    ["주의", "내용이 = 기호로 시작하면 Excel이 수식으로 인식할 수 있으니 맨 앞에 작은따옴표(')를 붙여 입력하세요."],
+    ["중복", "문제·보기·정답이 같은 문항은 자동으로 중복 처리합니다."],
+    ["게임", "학생에게는 보기 순서가 자동으로 섞여서 출제됩니다."],
     [],
     ["작성 예시"],
-    ["단원", "난이도", "문제", "정답"],
-    ["이차방정식", "보통", "x^2 - 5x + 6 = 0의 해를 구하시오.", "2, 3"],
-    ["제곱근", "쉬움", "sqrt(81)의 값을 구하시오.", "9"],
+    ["분야/과목", "단원", "난이도", "문제", "보기1", "보기2", "보기3", "보기4", "정답번호", "해설"],
+    ["공통수학2", "평면좌표", "쉬움", "두 점 A(1, 2), B(4, 6) 사이의 거리를 구하시오.", "3", "4", "5", "6", "3", "두 점 사이의 거리 공식을 이용하면 5이다."],
+    ["상식퀴즈", "세계 상식", "보통", "프랑스의 수도는 어디인가?", "파리", "로마", "마드리드", "베를린", "1", "프랑스의 수도는 파리이다."],
   ];
 
   const guideSheet = XLSX.utils.aoa_to_sheet(guideRows);
   guideSheet["!cols"] = [
     { wch: 18 },
-    { wch: 78 },
+    { wch: 80 },
     { wch: 58 },
-    { wch: 34 },
+    { wch: 28 },
+    { wch: 28 },
+    { wch: 28 },
+    { wch: 28 },
+    { wch: 12 },
+    { wch: 58 },
   ];
 
   XLSX.utils.book_append_sheet(workbook, questionSheet, TEMPLATE_SHEET_NAME);
@@ -95,7 +139,7 @@ export async function parseQuestionWorkbook(file, existingQuestions = []) {
   });
 
   if (!workbook.SheetNames.includes(TEMPLATE_SHEET_NAME)) {
-    throw new Error(`'${TEMPLATE_SHEET_NAME}' 시트를 찾지 못했습니다. 웹앱에서 받은 양식을 사용해주세요.`);
+    throw new Error(`'${TEMPLATE_SHEET_NAME}' 시트를 찾지 못했습니다. 웹앱에서 새 객관식 양식을 받아 사용해주세요.`);
   }
 
   const sheet = workbook.Sheets[TEMPLATE_SHEET_NAME];
@@ -122,39 +166,53 @@ export async function parseQuestionWorkbook(file, existingQuestions = []) {
   );
 
   if (missingHeaders.length > 0) {
-    throw new Error(`필수 열이 없습니다: ${missingHeaders.join(", ")}`);
+    throw new Error(
+      `새 객관식 양식에 필요한 열이 없습니다: ${missingHeaders.join(", ")}. 웹앱에서 양식을 다시 받아주세요.`
+    );
   }
 
-  const dataRows = rows.slice(1).filter((row) =>
+  const nonEmptyRows = rows.slice(1).filter((row) =>
     row.some((cell) => cleanText(cell) !== "")
   );
 
-  if (dataRows.length === 0) {
+  if (nonEmptyRows.length === 0) {
     throw new Error("등록할 문제가 없습니다. 문제은행 시트에 문제를 입력해주세요.");
   }
 
-  if (dataRows.length > MAX_IMPORT_ROWS) {
+  if (nonEmptyRows.length > MAX_IMPORT_ROWS) {
     throw new Error(`한 번에 최대 ${MAX_IMPORT_ROWS.toLocaleString()}문제까지 등록할 수 있습니다.`);
   }
 
   const existingKeys = new Set(
-    existingQuestions.map((item) =>
-      normalizeQuestionKey(item.question, item.answer)
-    )
+    existingQuestions
+      .filter(isMultipleChoiceQuestion)
+      .map((item) => normalizeQuestionKey(item.question, item.choices, item.correctOption))
   );
   const uploadKeys = new Set();
 
   const analyzedRows = [];
+
   for (let i = 1; i < rows.length; i += 1) {
     const sourceRow = rows[i] ?? [];
     const hasValue = sourceRow.some((cell) => cleanText(cell) !== "");
     if (!hasValue) continue;
 
-
+    const categoryIndex = ["분야/과목", "분야", "과목"]
+      .map((header) => headerMap.get(normalizeHeader(header)))
+      .find((index) => index !== undefined);
+    const category = categoryIndex === undefined ? "기존 문제" : (cleanText(sourceRow[categoryIndex]) || "기존 문제");
     const unit = cleanText(sourceRow[headerMap.get("단원")]);
     const difficulty = cleanText(sourceRow[headerMap.get("난이도")]);
     const question = cleanText(sourceRow[headerMap.get("문제")]);
-    const answer = cleanText(sourceRow[headerMap.get("정답")]);
+    const choices = [1, 2, 3, 4].map((number) =>
+      cleanText(sourceRow[headerMap.get(`보기${number}`)])
+    );
+    const correctOptionRaw = cleanText(sourceRow[headerMap.get("정답번호")]);
+    const correctOption = Number(correctOptionRaw);
+    const explanationIndex = headerMap.get("해설");
+    const explanation = explanationIndex === undefined
+      ? ""
+      : cleanText(sourceRow[explanationIndex]);
 
     const errors = [];
 
@@ -164,12 +222,29 @@ export async function parseQuestionWorkbook(file, existingQuestions = []) {
       errors.push(`난이도는 ${QUESTION_DIFFICULTIES.join(" / ")} 중 하나여야 합니다.`);
     }
     if (!question) errors.push("문제가 비어 있습니다.");
-    if (!answer) errors.push("정답이 비어 있습니다.");
+
+    choices.forEach((choice, index) => {
+      if (!choice) errors.push(`보기${index + 1}이 비어 있습니다.`);
+      if (choice.length > 500) errors.push(`보기${index + 1}은 500자 이하로 입력해주세요.`);
+    });
+
+    const normalizedChoices = choices.map(normalizeComparable).filter(Boolean);
+    if (normalizedChoices.length === 4 && new Set(normalizedChoices).size !== 4) {
+      errors.push("보기 네 개는 서로 달라야 합니다.");
+    }
+
+    if (!correctOptionRaw) {
+      errors.push("정답번호가 비어 있습니다.");
+    } else if (!Number.isInteger(correctOption) || correctOption < 1 || correctOption > 4) {
+      errors.push("정답번호는 1, 2, 3, 4 중 하나여야 합니다.");
+    }
+
+    if (category.length > 100) errors.push("분야/과목은 100자 이하로 입력해주세요.");
     if (unit.length > 100) errors.push("단원은 100자 이하로 입력해주세요.");
     if (question.length > 2000) errors.push("문제는 2,000자 이하로 입력해주세요.");
-    if (answer.length > 500) errors.push("정답은 500자 이하로 입력해주세요.");
+    if (explanation.length > 2000) errors.push("해설은 2,000자 이하로 입력해주세요.");
 
-    const key = normalizeQuestionKey(question, answer);
+    const key = normalizeQuestionKey(question, choices, correctOption);
     let status = "ready";
     let reason = "등록 가능";
 
@@ -178,20 +253,24 @@ export async function parseQuestionWorkbook(file, existingQuestions = []) {
       reason = errors.join(" ");
     } else if (existingKeys.has(key)) {
       status = "duplicate";
-      reason = "이미 문제은행에 같은 문제와 정답이 있습니다.";
+      reason = "이미 문제은행에 같은 객관식 문제가 있습니다.";
     } else if (uploadKeys.has(key)) {
       status = "duplicate";
-      reason = "이 Excel 파일 안에 같은 문제와 정답이 중복되어 있습니다.";
+      reason = "이 Excel 파일 안에 같은 문제가 중복되어 있습니다.";
     } else {
       uploadKeys.add(key);
     }
 
     analyzedRows.push({
       excelRow: i + 1,
+      category,
       unit,
       difficulty,
       question,
-      answer,
+      choices,
+      correctOption,
+      correctAnswer: choices[correctOption - 1] || "",
+      explanation,
       status,
       reason,
     });

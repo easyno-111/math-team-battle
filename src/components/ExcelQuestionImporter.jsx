@@ -13,6 +13,7 @@ import {
 
 const PREVIEW_LIMIT = 100;
 const BATCH_SIZE = 400;
+const CHOICE_LABELS = ["①", "②", "③", "④"];
 
 function makeBatchId() {
   if (globalThis.crypto?.randomUUID) {
@@ -80,7 +81,7 @@ export default function ExcelQuestionImporter({ user, questions }) {
       } else {
         setMessageType("success");
         setMessage(
-          `${result.ready}개 문제를 등록할 준비가 되었습니다.${
+          `${result.ready}개 객관식 문제를 등록할 준비가 되었습니다.${
             result.duplicates > 0
               ? ` 중복 ${result.duplicates}개는 자동으로 제외됩니다.`
               : ""
@@ -103,7 +104,7 @@ export default function ExcelQuestionImporter({ user, questions }) {
     }
 
     const ok = window.confirm(
-      `${analysis.readyRows.length}개 문제를 문제은행에 등록할까요?\n중복 ${analysis.duplicates}개는 등록하지 않습니다.`
+      `${analysis.readyRows.length}개 객관식 문제를 문제은행에 등록할까요?\n중복 ${analysis.duplicates}개는 등록하지 않습니다.`
     );
 
     if (!ok) return;
@@ -124,8 +125,13 @@ export default function ExcelQuestionImporter({ user, questions }) {
           const questionRef = doc(collection(db, "questions"));
 
           batch.set(questionRef, {
+            type: "multiple-choice",
+            schemaVersion: 2,
             question: row.question,
-            answer: row.answer,
+            choices: row.choices,
+            correctOption: row.correctOption,
+            explanation: row.explanation || "",
+            category: row.category || "기존 문제",
             unit: row.unit,
             difficulty: row.difficulty,
             enabled: true,
@@ -143,7 +149,7 @@ export default function ExcelQuestionImporter({ user, questions }) {
       }
 
       setMessageType("success");
-      setMessage(`${analysis.readyRows.length}개 문제가 정상적으로 등록되었습니다.`);
+      setMessage(`${analysis.readyRows.length}개 객관식 문제가 정상적으로 등록되었습니다.`);
       setAnalysis(null);
       setFileName("");
       resetFileInput();
@@ -168,9 +174,9 @@ export default function ExcelQuestionImporter({ user, questions }) {
       <div className="panel-title bulk-title">
         <div>
           <span className="section-pill peach">여러 문제 한 번에</span>
-          <h2>엑셀로 문제 넣기</h2>
+          <h2>객관식 엑셀로 문제 넣기</h2>
           <p className="panel-description">
-            전용 양식에 문제를 적어 올리면, 저장 전에 오류와 중복을 먼저 확인해드려요.
+            분야/과목 · 주제/단원 · 문제와 보기를 적어 올리면 저장 전에 오류와 중복을 확인해요.
           </p>
         </div>
 
@@ -179,7 +185,7 @@ export default function ExcelQuestionImporter({ user, questions }) {
           className="template-button"
           onClick={downloadQuestionTemplate}
         >
-          엑셀 양식 받기
+          새 객관식 양식 받기
         </button>
       </div>
 
@@ -187,29 +193,29 @@ export default function ExcelQuestionImporter({ user, questions }) {
         <div className="workflow-step lavender-step">
           <span className="workflow-number">1</span>
           <div>
-            <strong>양식 받기</strong>
-            <p>단원 · 난이도 · 문제 · 정답이 들어 있는 전용 양식을 받아요.</p>
+            <strong>새 양식 받기</strong>
+            <p>분야/과목 · 단원 · 난이도 · 문제 · 보기4개 · 정답번호가 들어 있는 양식을 받아요.</p>
           </div>
         </div>
         <div className="workflow-step mint-step">
           <span className="workflow-number">2</span>
           <div>
-            <strong>문제 채우기</strong>
-            <p>엑셀에서 필요한 문제를 원하는 만큼 작성해요.</p>
+            <strong>4지선다 문제 채우기</strong>
+            <p>정답번호에는 1~4 중 하나를 입력하고, 해설은 선택으로 적을 수 있어요.</p>
           </div>
         </div>
         <div className="workflow-step peach-step">
           <span className="workflow-number">3</span>
           <div>
             <strong>올리고 확인하기</strong>
-            <p>오류와 중복을 확인한 뒤 한 번에 문제은행에 저장해요.</p>
+            <p>빈 보기, 중복 보기, 잘못된 정답번호까지 검사한 뒤 한 번에 저장해요.</p>
           </div>
         </div>
       </div>
 
       <div className="upload-zone">
         <div className="upload-copy">
-          <strong>작성한 엑셀 파일을 선택해주세요.</strong>
+          <strong>작성한 새 객관식 엑셀 파일을 선택해주세요.</strong>
           <span>.xlsx · 최대 10MB · 최대 5,000문제</span>
           {fileName && <em>{fileName}</em>}
         </div>
@@ -309,14 +315,16 @@ export default function ExcelQuestionImporter({ user, questions }) {
           </div>
 
           <div className="excel-table-wrap">
-            <table className="excel-preview-table">
+            <table className="excel-preview-table excel-multiple-choice-table">
               <thead>
                 <tr>
                   <th>행</th>
                   <th>상태</th>
+                  <th>분야/과목</th>
                   <th>단원</th>
                   <th>난이도</th>
                   <th>문제</th>
+                  <th>보기</th>
                   <th>정답</th>
                   <th>검사 결과</th>
                 </tr>
@@ -326,10 +334,22 @@ export default function ExcelQuestionImporter({ user, questions }) {
                   <tr key={`${row.excelRow}-${row.question}`} className={`row-${row.status}`}>
                     <td>{row.excelRow}</td>
                     <td><StatusBadge status={row.status} /></td>
+                    <td>{row.category || "기존 문제"}</td>
                     <td>{row.unit || "-"}</td>
                     <td>{row.difficulty || "-"}</td>
                     <td className="preview-question-cell">{row.question || "-"}</td>
-                    <td>{row.answer || "-"}</td>
+                    <td className="preview-choice-cell">
+                      {row.choices?.map((choice, index) => (
+                        <div key={`${row.excelRow}-choice-${index}`}>
+                          <span>{CHOICE_LABELS[index]}</span> {choice || "-"}
+                        </div>
+                      ))}
+                    </td>
+                    <td>
+                      {Number.isInteger(row.correctOption) && row.correctOption >= 1 && row.correctOption <= 4
+                        ? `${CHOICE_LABELS[row.correctOption - 1]} ${row.correctAnswer}`
+                        : row.correctOption || "-"}
+                    </td>
                     <td className="reason-cell">{row.reason}</td>
                   </tr>
                 ))}

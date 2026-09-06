@@ -12,8 +12,18 @@
         "participants": {
           "$uid": {
             ".write": "auth != null && ((root.child('rooms').child($roomCode).child('hostUid').val() == auth.uid) || (auth.uid == $uid && ((!data.exists() && root.child('rooms').child($roomCode).child('status').val() == 'waiting') || data.exists())))",
-            ".validate": "!newData.exists() || (newData.hasChildren(['uid','name','team']) && newData.child('uid').val() == $uid && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 20 && (newData.child('team').val() == 'A' || newData.child('team').val() == 'B') && (!data.exists() || newData.child('team').val() == data.child('team').val()))"
+            ".validate": "!newData.exists() || (newData.hasChildren(['uid','name','team']) && newData.child('uid').val() == $uid && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 20 && (newData.child('team').val() == 'A' || newData.child('team').val() == 'B' || newData.child('team').val() == 'C' || newData.child('team').val() == 'D') && (!data.exists() || newData.child('team').val() == data.child('team').val() || root.child('rooms').child($roomCode).child('hostUid').val() == auth.uid))"
           }
+        }
+      }
+    },
+    "roomSubmissions": {
+      "$roomCode": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider == 'password' && root.child('rooms').child($roomCode).child('hostUid').val() == auth.uid",
+        ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password' && root.child('rooms').child($roomCode).child('hostUid').val() == auth.uid",
+        "$uid": {
+          ".write": "auth != null && auth.uid == $uid && newData.exists() && root.child('rooms').child($roomCode).child('status').val() == 'playing' && newData.child('questionId').val() == root.child('rooms').child($roomCode).child('playerStates').child($uid).child('currentQuestion').child('id').val()",
+          ".validate": "newData.hasChildren(['uid','questionId','choice','nonce']) && newData.child('uid').val() == $uid && newData.child('questionId').isString() && newData.child('choice').isString() && newData.child('choice').val().length > 0 && newData.child('choice').val().length <= 500 && newData.child('nonce').isString() && newData.child('nonce').val().length > 0 && newData.child('nonce').val().length <= 100"
         }
       }
     }

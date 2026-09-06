@@ -1,7 +1,7 @@
 {
   "name": "math-team-battle",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.7.3",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,7 +13,9 @@
     "firebase": "^12.18.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "@keep-lts/xlsx": "^0.18.6"
+    "@keep-lts/xlsx": "^0.18.6",
+    "qrcode": "^1.5.4",
+    "@google/genai": "^2.7.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
