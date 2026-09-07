@@ -13,6 +13,8 @@ import {
 import { adminRealtime, realtimeReady } from "../realtime";
 import { attackPowerForDifficulty } from "../utils/answerJudge";
 import RoomQrCode from "./RoomQrCode";
+import BattleStage from "./BattleStage";
+import { rankTeam } from "../utils/teamRanking";
 import teacherLobbyBg from "../assets/game/teacher-lobby.webp";
 import battleArenaBg from "../assets/game/battle-arena.webp";
 
@@ -214,32 +216,6 @@ function comboAttackProfile(combo) {
   };
 }
 
-function attackPlaybackDuration(event) {
-  if (Number(event?.duration || 0) > 0) return Number(event.duration);
-  return comboAttackProfile(Number(event?.combo || 0)).duration;
-}
-
-function attackMotionTiming(type, projectileCount = 1) {
-  const profiles = {
-    normal: { windup: 220, flight: 650, stagger: 0 },
-    power: { windup: 240, flight: 680, stagger: 0 },
-    double: { windup: 240, flight: 690, stagger: 105 },
-    rocket: { windup: 290, flight: 790, stagger: 0 },
-    barrage: { windup: 250, flight: 620, stagger: 92 },
-    fever: { windup: 330, flight: 820, stagger: 115 },
-  };
-
-  const profile = profiles[type] || profiles.normal;
-  const finalLaunchDelay = Math.max(0, Number(projectileCount || 1) - 1) * profile.stagger;
-  const impact = profile.windup + finalLaunchDelay + Math.round(profile.flight * 0.86);
-
-  return {
-    ...profile,
-    impact,
-    attackerMotion: Math.max(660, profile.windup + 430),
-  };
-}
-
 function getBattleEvents(room) {
   if (!room?.battleEvents) return [];
   return Object.entries(room.battleEvents)
@@ -356,86 +332,6 @@ function buildNextTournamentState(room, winnerTeam) {
     champion: winnerTeam,
     tournament: { ...tournament, currentIndex, champion: winnerTeam },
   };
-}
-
-function getRopeShift(scoreA, scoreB) {
-  const total = Math.max(8, scoreA + scoreB);
-  const ratio = (scoreB - scoreA) / Math.max(8, total * 0.58);
-  return Math.max(-7.5, Math.min(7.5, ratio * 7.5));
-}
-
-function getCharacterPosition(side, index, count) {
-  const safeCount = Math.max(1, count);
-  const spread = safeCount <= 1 ? 0 : 34 / Math.max(1, safeCount - 1);
-  const x = side === "left"
-    ? (safeCount <= 1 ? 37 : 8 + spread * index)
-    : (safeCount <= 1 ? 63 : 58 + spread * index);
-  const y = 54 + (index % 3) * 3.2;
-  return { x, y };
-}
-
-function useBattlePlayback(matchId, battleEvents) {
-  const [activeEvent, setActiveEvent] = useState(null);
-  const seen = useRef(new Set());
-  const queue = useRef([]);
-  const playbackTimer = useRef(null);
-  const initializedMatch = useRef("");
-
-  useEffect(() => {
-    if (initializedMatch.current === matchId) return undefined;
-    initializedMatch.current = matchId || "";
-    seen.current = new Set();
-    queue.current = [];
-    if (playbackTimer.current) window.clearTimeout(playbackTimer.current);
-    playbackTimer.current = null;
-    setActiveEvent(null);
-    return () => {
-      if (playbackTimer.current) window.clearTimeout(playbackTimer.current);
-      playbackTimer.current = null;
-    };
-  }, [matchId]);
-
-  useEffect(() => {
-    const events = getBattleEvents({ battleEvents });
-    if (events.length === 0) return undefined;
-
-    const newEvents = events.filter((event) => !seen.current.has(event.id));
-    if (newEvents.length === 0) return undefined;
-    newEvents.forEach((event) => seen.current.add(event.id));
-
-    const cutoff = Date.now() - 3500;
-    const recentEvents = newEvents.filter((event) => Number(event.at || 0) >= cutoff);
-    if (recentEvents.length === 0) return undefined;
-    queue.current.push(...recentEvents);
-    queue.current = queue.current.slice(-16);
-
-    if (playbackTimer.current) return undefined;
-
-    const playNext = () => {
-      const next = queue.current.shift();
-      if (!next) {
-        playbackTimer.current = null;
-        setActiveEvent(null);
-        return;
-      }
-
-      setActiveEvent(next);
-      const duration = attackPlaybackDuration(next);
-      playbackTimer.current = window.setTimeout(() => {
-        setActiveEvent(null);
-        playbackTimer.current = window.setTimeout(playNext, 90);
-      }, duration);
-    };
-
-    playbackTimer.current = window.setTimeout(playNext, 0);
-    return undefined;
-  }, [battleEvents]);
-
-  useEffect(() => () => {
-    if (playbackTimer.current) window.clearTimeout(playbackTimer.current);
-  }, []);
-
-  return activeEvent;
 }
 
 export default function GameRoomManager({ user, questions, onGoQuestionBank }) {
@@ -1584,10 +1480,10 @@ function TeamPanel({ team, label, participants, teamOptions, onMoveTeam }) {
           <span>{team} TEAM</span>
           <strong>{label}</strong>
         </div>
-        <b>{participants.length}</b>
+        <b title="등록 학생 수">{participants.length}명</b>
       </div>
 
-      <div className="teacher-participant-list">
+      <div className="teacher-participant-list" tabIndex={0} aria-label={`${label} 학생 목록`}>
         {participants.length === 0 ? (
           <div className="team-empty-slot">학생을 기다리고 있어요</div>
         ) : (
@@ -1596,7 +1492,7 @@ function TeamPanel({ team, label, participants, teamOptions, onMoveTeam }) {
               <span className="participant-dot" />
               <div className="participant-chip-main">
                 <strong>{participant.name}</strong>
-                <small>{participant.online === false ? "오프라인" : "접속"}</small>
+                <small>{participant.online === false ? "오프라인" : "접속 중"}</small>
               </div>
               <select
                 className="participant-team-select"
@@ -1640,8 +1536,6 @@ function TeacherMatchView({
   const playerStates = room.playerStates || {};
   const leftParticipants = participants.filter((participant) => participant.team === leftTeam);
   const rightParticipants = participants.filter((participant) => participant.team === rightTeam);
-  const activeAttack = useBattlePlayback(room.matchId, room.battleEvents);
-  const ropeShift = getRopeShift(scoreLeft, scoreRight);
   const teamCount = Number(room.config?.teamCount || 2);
   const winnerLabel = room.winner && room.winner !== "draw"
     ? TEAM_META[room.winner]?.label || `${room.winner}팀`
@@ -1653,8 +1547,8 @@ function TeacherMatchView({
 
       <header className="teacher-match-scoreboard">
         <div
-          key={`score-left-${activeAttack?.id || "idle"}`}
-          className={`match-score team-${leftTeam.toLowerCase()}-score ${activeAttack?.attackerTeam === leftTeam ? "is-scoring" : ""}`}
+          key={`score-left-${scoreLeft}`}
+          className={`match-score team-${leftTeam.toLowerCase()}-score ${playing ? "is-scoring" : ""}`}
         >
           <span>{TEAM_META[leftTeam]?.short || leftTeam}</span>
           <strong>{scoreLeft}</strong>
@@ -1665,8 +1559,8 @@ function TeacherMatchView({
           <small>ROOM {roomCode} · {room.title}</small>
         </div>
         <div
-          key={`score-right-${activeAttack?.id || "idle"}`}
-          className={`match-score team-${rightTeam.toLowerCase()}-score ${activeAttack?.attackerTeam === rightTeam ? "is-scoring" : ""}`}
+          key={`score-right-${scoreRight}`}
+          className={`match-score team-${rightTeam.toLowerCase()}-score ${playing ? "is-scoring" : ""}`}
         >
           <span>{TEAM_META[rightTeam]?.short || rightTeam}</span>
           <strong>{scoreRight}</strong>
@@ -1710,17 +1604,13 @@ function TeacherMatchView({
       )}
 
       <BattleStage
+        key={`${room.matchId}-${playing}`}
         leftTeam={leftTeam}
         rightTeam={rightTeam}
         leftParticipants={leftParticipants}
         rightParticipants={rightParticipants}
-        playerStates={playerStates}
-        activeAttack={activeAttack}
-        ropeShift={ropeShift}
-        scoreLeft={scoreLeft}
-        scoreRight={scoreRight}
-        celebrating={betweenMatches || finished}
-        winnerTeam={room.winner}
+        room={room}
+        playing={playing}
       />
 
       <div className="match-roster-grid">
@@ -1757,271 +1647,21 @@ function TeacherMatchView({
   );
 }
 
-function BattleStage({
-  leftTeam,
-  rightTeam,
-  leftParticipants,
-  rightParticipants,
-  playerStates,
-  activeAttack,
-  ropeShift,
-  scoreLeft,
-  scoreRight,
-  celebrating,
-  winnerTeam,
-}) {
-  const allCharacters = [
-    ...leftParticipants.map((participant, index) => ({
-      ...participant,
-      team: leftTeam,
-      side: "left",
-      state: playerStates[participant.id] || {},
-      position: getCharacterPosition("left", index, leftParticipants.length),
-      index,
-    })),
-    ...rightParticipants.map((participant, index) => ({
-      ...participant,
-      team: rightTeam,
-      side: "right",
-      state: playerStates[participant.id] || {},
-      position: getCharacterPosition("right", index, rightParticipants.length),
-      index,
-    })),
-  ];
-
-  const attacker = allCharacters.find((character) => character.id === activeAttack?.attackerUid);
-  const target = allCharacters.find((character) => character.id === activeAttack?.targetUid);
-  const attackerOnRight = activeAttack?.attackerTeam === rightTeam;
-  const attackerPosition = attacker?.position || { x: attackerOnRight ? 72 : 28, y: 56 };
-  const targetPosition = target?.position || { x: attackerOnRight ? 28 : 72, y: 56 };
-  const midX = (attackerPosition.x + targetPosition.x) / 2;
-  const attackProfile = comboAttackProfile(Number(activeAttack?.combo || 0));
-  const attackTier = activeAttack?.tier || attackProfile.tier;
-  const attackType = activeAttack?.attackType || attackProfile.type;
-  const attackLabel = activeAttack?.attackLabel || attackProfile.label;
-  const projectileCount = Number(activeAttack?.projectileCount || attackProfile.projectileCount || 1);
-  const motionTiming = attackMotionTiming(attackType, projectileCount);
-  const pullClass = scoreLeft === scoreRight ? "center" : scoreLeft > scoreRight ? "pull-a" : "pull-b";
-  const characterCount = allCharacters.length;
-  const densityClass = characterCount >= 34
-    ? "very-crowded"
-    : characterCount >= 24
-      ? "crowded"
-      : "";
-
-  return (
-    <div
-      className={`battle-stage ${pullClass} ${densityClass} ${activeAttack ? `attack-active attack-${attackType}` : ""} ${celebrating ? `match-celebration winner-${String(winnerTeam || "draw").toLowerCase()}` : ""}`.trim()}
-      style={{
-        "--rope-shift": `${ropeShift}%`,
-        "--character-shift": `${ropeShift * 0.62}%`,
-        "--windup-duration": `${motionTiming.windup / 1000}s`,
-        "--attacker-motion-duration": `${motionTiming.attackerMotion / 1000}s`,
-        "--impact-delay": `${motionTiming.impact / 1000}s`,
-        "--impact-nudge": `${attackerOnRight ? 10 : -10}px`,
-        "--impact-rebound": `${attackerOnRight ? -3 : 3}px`,
-        "--character-impact-nudge": `${attackerOnRight ? 5 : -5}px`,
-        "--character-impact-rebound": `${attackerOnRight ? -2 : 2}px`,
-      }}
-    >
-      <div className={`battle-stage-team-label battle-stage-team-a team-theme-${leftTeam.toLowerCase()}`}>{leftTeam} TEAM</div>
-      <div className={`battle-stage-team-label battle-stage-team-b team-theme-${rightTeam.toLowerCase()}`}>{rightTeam} TEAM</div>
-
-      <div className="battle-center-line" />
-      <div className="battle-center-beacon"><span>CENTER</span><i /></div>
-      <div className="battle-rope-shadow" />
-      <div className="battle-rope">
-        <span className="battle-rope-fiber" />
-        <span className="battle-rope-knot"><i /><b>현재 줄</b></span>
-      </div>
-
-      <div className="battle-character-layer">
-        {allCharacters.map((character) => {
-          const combo = Number(character.state.currentCombo || 0);
-          const isAttacker = activeAttack?.attackerUid === character.id;
-          const isHit = activeAttack?.targetUid === character.id;
-          const isFeverSupport = attackType === "fever" && activeAttack?.attackerTeam === character.team && !isAttacker;
-          const sideCount = character.side === "left" ? leftParticipants.length : rightParticipants.length;
-          const compactScale = Math.max(0.64, 1 - Math.max(0, sideCount - 8) * 0.028);
-          const idlePaused = sideCount > 12 && character.index % (sideCount > 18 ? 4 : 3) !== 0;
-
-          return (
-            <div
-              className={`rope-student rope-student-${character.team.toLowerCase()} rope-side-${character.side} ${idlePaused ? "idle-paused" : ""} ${combo >= 10 ? "combo-fever-ready" : combo >= 5 ? "combo-hot" : combo >= 2 ? "combo-ready" : ""} ${isAttacker ? "is-attacking" : ""} ${isHit ? "is-hit" : ""} ${isFeverSupport ? "fever-support" : ""}`}
-              style={{
-                left: `${character.position.x}%`,
-                top: `${character.position.y}%`,
-                "--char-delay": `${(character.index % 7) * -0.13}s`,
-                "--char-scale": compactScale,
-              }}
-              key={character.id}
-            >
-              <div className="rope-student-name">
-                <strong>{character.name}</strong>
-                {combo >= 2 && <span>{combo} COMBO</span>}
-              </div>
-              {isAttacker && (
-                <div className={`rope-student-action action-${attackTier}`}>
-                  <strong>+{Number(activeAttack?.attack || 0)}</strong>
-                  <span>{Number(activeAttack?.combo || 0) >= 2 ? `${activeAttack.combo} COMBO` : "정답!"}</span>
-                </div>
-              )}
-              <div className="pixel-person">
-                <span className="pixel-head"><i /></span>
-                <span className="pixel-body" />
-                <span className="pixel-arm pixel-arm-front" />
-                <span className="pixel-arm pixel-arm-back" />
-                <span className="pixel-leg pixel-leg-front" />
-                <span className="pixel-leg pixel-leg-back" />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {activeAttack && (
-        <>
-          <div
-            className={`attack-charge attack-charge-${attackType}`}
-            style={{ left: `${attackerPosition.x}%`, top: `${attackerPosition.y - 4}%` }}
-          >
-            <span />
-            <i />
-          </div>
-
-          {Array.from({ length: projectileCount }).map((_, projectileIndex) => {
-            const fanOffset = projectileCount <= 1
-              ? 0
-              : (projectileIndex - (projectileCount - 1) / 2) * (attackType === "barrage" ? 3.6 : 2.2);
-            const arcLift = attackType === "rocket" || attackType === "fever" ? 5 : 0;
-
-            return (
-              <div
-                key={`${activeAttack.id}-projectile-${projectileIndex}`}
-                className={`battle-projectile projectile-${activeAttack.attackerTeam?.toLowerCase()} projectile-${attackTier} attack-style-${attackType}`}
-                style={{
-                  "--attack-start-x": `${attackerPosition.x}%`,
-                  "--attack-mid-x": `${midX + fanOffset * 0.35}%`,
-                  "--attack-end-x": `${targetPosition.x + fanOffset}%`,
-                  "--attack-start-y": `${attackerPosition.y - 5}%`,
-                  "--attack-peak-y": `${Math.max(10, 21 - arcLift - Math.abs(fanOffset) * 0.4)}%`,
-                  "--attack-end-y": `${targetPosition.y - 5 + Math.abs(fanOffset) * 0.25}%`,
-                  "--projectile-delay": `${(motionTiming.windup + projectileIndex * motionTiming.stagger) / 1000}s`,
-                  "--projectile-duration": `${motionTiming.flight / 1000}s`,
-                  "--projectile-index": projectileIndex,
-                }}
-              >
-                <span className="projectile-tail" />
-                <span className="projectile-core">
-                  {attackType === "rocket" || attackType === "fever" ? "Σ" : attackType === "double" ? "×2" : "×"}
-                </span>
-                {(attackType === "rocket" || attackType === "fever") && <span className="projectile-fins" />}
-              </div>
-            );
-          })}
-
-          <div
-            key={`${activeAttack.id}-impact`}
-            className={`battle-impact impact-${activeAttack.targetTeam?.toLowerCase()} impact-style-${attackType}`}
-            style={{ left: `${targetPosition.x}%`, top: `${targetPosition.y - 3}%` }}
-          >
-            <span />
-            <i />
-            {(attackType === "rocket" || attackType === "barrage" || attackType === "fever") && <b />}
-            <div className="battle-impact-sparks">
-              {Array.from({ length: 8 }).map((_, sparkIndex) => (
-                <em
-                  key={`${activeAttack.id}-spark-${sparkIndex}`}
-                  style={{
-                    "--spark-angle": `${sparkIndex * 45}deg`,
-                    "--spark-distance": `${32 + (sparkIndex % 3) * 8}px`,
-                    "--spark-delay": `${motionTiming.impact / 1000}s`,
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-
-          {(attackType === "rocket" || attackType === "barrage" || attackType === "fever") && (
-            <div
-              className={`battle-shockwave shockwave-${attackType}`}
-              style={{ left: `${targetPosition.x}%`, top: `${targetPosition.y - 3}%` }}
-            />
-          )}
-
-          {attackType === "fever" && (
-            <div className={`team-fever-flash team-fever-${activeAttack.attackerTeam?.toLowerCase()}`}>
-              <span>{activeAttack.attackerTeam} TEAM</span>
-              <strong>FEVER</strong>
-            </div>
-          )}
-
-          <div className={`battle-attack-callout callout-${attackTier} callout-style-${attackType}`} key={`${activeAttack.id}-callout`}>
-            <span>{activeAttack.attackerName}</span>
-            <strong>{Number(activeAttack.combo || 0) >= 2 ? `${activeAttack.combo} COMBO!` : "정답!"}</strong>
-            <em>{attackLabel}</em>
-            <small>공격 +{activeAttack.attack}</small>
-          </div>
-        </>
-      )}
-
-      {celebrating && winnerTeam && winnerTeam !== "draw" && (
-        <div className={`battle-victory-overlay victory-${String(winnerTeam).toLowerCase()}`}>
-          <span className="battle-finish-word">FINISH!</span>
-          <div className="battle-victory-card">
-            <small>{TEAM_META[winnerTeam]?.label || `${winnerTeam}팀`}</small>
-            <strong>승리!</strong>
-          </div>
-          <div className="battle-confetti" aria-hidden="true">
-            {Array.from({ length: 18 }).map((_, confettiIndex) => (
-              <i
-                key={`confetti-${confettiIndex}`}
-                style={{
-                  "--confetti-x": `${8 + (confettiIndex * 17) % 84}%`,
-                  "--confetti-delay": `${(confettiIndex % 7) * 0.07}s`,
-                  "--confetti-rotate": `${(confettiIndex * 47) % 180}deg`,
-                }}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="battle-pull-indicator">
-        <span>{leftTeam}</span>
-        <div className="battle-pull-track">
-          <em />
-          <i style={{ left: `calc(50% + ${ropeShift}%)` }} />
-        </div>
-        <span>{rightTeam}</span>
-      </div>
-    </div>
-  );
-}
-
 function MatchTeamList({ team, participants, playerStates }) {
+  const ranked = rankTeam(participants, playerStates);
   return (
     <div className={`match-team-list match-team-${team.toLowerCase()}`}>
-      <div className="match-team-list-title">
-        <span>{team} TEAM</span>
-        <strong>{TEAM_META[team]?.label || `${team}팀`}</strong>
-      </div>
-      <div className="match-student-list">
-        {participants.map((participant) => {
+      <div className="match-team-list-title"><span>{team} TEAM</span><strong>{TEAM_META[team]?.label || `${team}팀`} · 팀 내 순위</strong></div>
+      <div className="team-rank-guide">누적 공격력 기준 · 동점은 공동 순위</div>
+      <div className="match-student-list ranked-student-list" tabIndex={0} aria-label={`${team}팀 순위 목록`}>
+        {ranked.map((participant) => {
           const state = playerStates[participant.id] || {};
           const combo = Number(state.currentCombo || 0);
-          return (
-            <div className="match-student-row" key={participant.id}>
-              <div>
-                <strong>{participant.name}</strong>
-                <span>{combo >= 2 ? `${combo} COMBO` : state.currentQuestion ? `${state.currentQuestion.category || "기존 문제"} · ${state.currentQuestion.unit || "주제"}` : "문제 준비 중"}</span>
-              </div>
-              <div className="match-student-stats">
-                <b>{state.correctCount || 0}정답</b>
-                <small>공격 {state.attackPower || 0}</small>
-              </div>
-            </div>
-          );
+          return <div className={`match-student-row ranked-student-row rank-${participant.rank <= 3 && participant.contribution > 0 ? participant.rank : 'other'}`} key={participant.id}>
+            <b className="team-rank-number" title={participant.tied ? '공동 순위' : '팀 내 순위'}>{participant.tied ? '=' : ''}{participant.rank}</b>
+            <div className="team-rank-person"><strong title={participant.name}>{participant.name}</strong><span>{combo >= 2 ? `${combo}콤보` : `${state.correctCount || 0}정답`}</span></div>
+            <div className="match-student-stats"><b>{participant.contribution}</b><small>공격력</small></div>
+          </div>;
         })}
       </div>
     </div>

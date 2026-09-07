@@ -26,6 +26,82 @@
           ".validate": "newData.hasChildren(['uid','questionId','choice','nonce']) && newData.child('uid').val() == $uid && newData.child('questionId').isString() && newData.child('choice').isString() && newData.child('choice').val().length > 0 && newData.child('choice').val().length <= 500 && newData.child('nonce').isString() && newData.child('nonce').val().length > 0 && newData.child('nonce').val().length <= 100"
         }
       }
+    },
+    "quizSets": {
+      "$uid": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider == 'password' && auth.uid == $uid",
+        ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password' && auth.uid == $uid",
+        "$setId": {
+          ".validate": "newData.hasChildren(['id','title','questions']) && newData.child('id').val() == $setId && newData.child('title').isString() && newData.child('title').val().length <= 80 && newData.child('questions').hasChild('0')",
+          "questions": {
+            "$index": {
+              ".validate": "$index.matches(/^([0-9]|[12][0-9]|3[0-9])$/)"
+            }
+          }
+        }
+      }
+    },
+    "quizSecrets": {
+      "$code": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider == 'password' && data.child('hostUid').val() == auth.uid",
+        ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password' && ((!data.exists() && root.child('quizRooms').child($code).child('hostUid').val() == auth.uid && newData.child('hostUid').val() == auth.uid) || data.child('hostUid').val() == auth.uid)"
+      }
+    },
+    "quizRooms": {
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password' && ((!data.exists() && newData.child('hostUid').val() == auth.uid) || data.child('hostUid').val() == auth.uid)",
+        "players": {
+          "$uid": {
+            ".write": "auth != null && auth.uid == $uid && !data.exists() && root.child('quizRooms').child($code).child('phase').val() == 'waiting'",
+            ".validate": "newData.hasChildren(['uid','name','joinedAt']) && newData.child('uid').val() == $uid",
+            "uid": {
+              ".validate": "newData.isString()"
+            },
+            "name": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 20"
+            },
+            "joinedAt": {
+              ".validate": "newData.isNumber()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        }
+      }
+    },
+    "quizAnswers": {
+      "$code": {
+        ".read": "auth != null && auth.token.firebase.sign_in_provider == 'password' && root.child('quizRooms').child($code).child('hostUid').val() == auth.uid",
+        ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password' && root.child('quizRooms').child($code).child('hostUid').val() == auth.uid",
+        "$round": {
+          "$uid": {
+            ".read": "auth != null && auth.uid == $uid",
+            ".write": "auth != null && auth.uid == $uid && !data.exists() && newData.exists() && root.child('quizRooms').child($code).child('players').child($uid).exists() && root.child('quizRooms').child($code).child('phase').val() == 'answer' && root.child('quizRooms').child($code).child('roundId').val() == $round && now >= root.child('quizRooms').child($code).child('startAt').val() && now <= root.child('quizRooms').child($code).child('endAt').val()",
+            ".validate": "newData.hasChildren(['uid','roundId','answer','submittedAt']) && newData.child('uid').val() == $uid && newData.child('roundId').val() == $round",
+            "uid": {
+              ".validate": "newData.isString()"
+            },
+            "roundId": {
+              ".validate": "newData.isString()"
+            },
+            "answer": {
+              ".validate": "newData.isString() && newData.val().length <= 4000"
+            },
+            "submittedAt": {
+              ".validate": "newData.isNumber() && newData.val() == now"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        }
+      }
+    },
+    "aiPrivate": {
+      ".read": false,
+      ".write": false
     }
   }
 }

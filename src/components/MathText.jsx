@@ -1,3 +1,4 @@
+import { splitMathSource } from '../utils/mathSource';
 function findClosing(text, openIndex, openChar, closeChar) {
   let depth = 0;
   for (let index = openIndex; index < text.length; index += 1) {
@@ -44,8 +45,12 @@ function readScript(text, startIndex) {
   return null;
 }
 
+const symbols = {times:'×',cdot:'·',div:'÷',pm:'±',pi:'π',alpha:'α',beta:'β',theta:'θ',Delta:'Δ',infty:'∞',rightarrow:'→',Rightarrow:'⇒',in:'∈',notin:'∉',cup:'∪',cap:'∩',approx:'≈',ldots:'…',cdots:'⋯',sum:'∑'};
 function normalizeMathSource(value) {
   return String(value ?? "")
+    .replace(/\\(left|right)(?![A-Za-z])/g, '')
+    .replace(/\\([A-Za-z]+)/g, (whole, name) => symbols[name] || whole)
+    .replace(/\\[,;!]/g, ' ')
     .replace(/\\leq?/g, "≤")
     .replace(/\\geq?/g, "≥")
     .replace(/\\neq/g, "≠")
@@ -56,6 +61,7 @@ function normalizeMathSource(value) {
 }
 
 function renderSegment(source, keyPrefix = "m") {
+  if (keyPrefix.length > 600) return String(source);
   const text = normalizeMathSource(source);
   const nodes = [];
   let buffer = "";
@@ -69,6 +75,21 @@ function renderSegment(source, keyPrefix = "m") {
   };
 
   while (index < text.length) {
+    const frac = text.slice(index).match(/^\\(?:dfrac|tfrac|frac)\s*\{/);
+    if (frac) {
+      const topStart=index+frac[0].length-1;
+      const topEnd=findClosing(text,topStart,'{','}');
+      let bottomStart=topEnd+1;
+      while (/\s/.test(text[bottomStart] || '') && bottomStart<text.length) bottomStart++;
+      const bottomEnd=text[bottomStart]==='{' ? findClosing(text,bottomStart,'{','}') : -1;
+      if(topEnd>=0 && bottomEnd>=0){
+        flush();
+        nodes.push(<span className="math-fraction" key={`${keyPrefix}-f-${key++}`}><span>{renderSegment(text.slice(topStart+1,topEnd),`${keyPrefix}-fn${key}`)}</span><span>{renderSegment(text.slice(bottomStart+1,bottomEnd),`${keyPrefix}-fd${key}`)}</span></span>);
+        index=bottomEnd+1;continue;
+      }
+    }
+    const group=text.slice(index).match(/^\\(?:text|mathrm|mathbf|mathit)\{/);
+    if(group){const open=index+group[0].length-1;const end=findClosing(text,open,'{','}');if(end>=0){flush();nodes.push(<span key={`${keyPrefix}-g-${key++}`}>{renderSegment(text.slice(open+1,end),`${keyPrefix}-g${key}`)}</span>);index=end+1;continue;}}
     let rootOpenIndex = -1;
     let rootOpenChar = "";
     let rootCloseChar = "";
@@ -135,7 +156,7 @@ function renderSegment(source, keyPrefix = "m") {
 }
 
 function MathText({ text = "" }) {
-  return <span className="math-text-flow">{renderSegment(text)}</span>;
+  return <span className="math-text-flow">{splitMathSource(text).map((part,i)=><span key={i} className={part.display?'math-display':undefined}>{renderSegment(part.text,`part${i}`)}</span>)}</span>;
 }
 
 export default MathText;

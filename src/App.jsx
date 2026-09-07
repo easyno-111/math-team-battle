@@ -26,10 +26,11 @@ import AIQuestionGenerator from "./components/AIQuestionGenerator";
 import SimilarQuestionGenerator from "./components/SimilarQuestionGenerator";
 import MathText from "./components/MathText";
 import StudentLobby from "./components/StudentLobby";
+import QuizHost, { QuizStudent } from "./quiz/Live";
 import { isMultipleChoiceQuestion } from "./utils/questionExcel";
 import "./App.css";
 
-const VERSION = "v0.8.0";
+const VERSION = "v0.12.2";
 const LEGACY_CATEGORY = "기존 문제";
 const CHOICE_LABELS = ["①", "②", "③", "④"];
 const DELETE_BATCH_SIZE = 400;
@@ -37,8 +38,10 @@ const DELETE_BATCH_SIZE = 400;
 function getStudentRoute() {
   const params = new URLSearchParams(window.location.search);
   const joinCode = (params.get("join") || "").replace(/\D/g, "").slice(0, 4);
-  const studentMode = params.get("mode") === "student" || Boolean(joinCode);
-  return { studentMode, joinCode };
+  const quizStudent = params.get("mode") === "quizstudent" || params.has("quiz");
+  const quizCode = (params.get("quiz") || "").replace(/\D/g, "").slice(0, 6);
+  const studentMode = quizStudent || params.get("mode") === "student" || Boolean(joinCode);
+  return { studentMode, joinCode, quizStudent, quizCode };
 }
 
 function openStudentEntry() {
@@ -70,11 +73,12 @@ function makeQuestionGroupKey(category, unit) {
 }
 
 function App() {
-  const { studentMode, joinCode } = useMemo(() => getStudentRoute(), []);
+  const { studentMode, joinCode, quizStudent, quizCode } = useMemo(() => getStudentRoute(), []);
 
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(!studentMode);
   const [activeSection, setActiveSection] = useState(() => {
+    if (window.location.hash === "#quiz") return "quiz";
     if (window.location.hash === "#room") return "room";
     if (window.location.hash === "#ai") return "ai";
     return "questions";
@@ -699,12 +703,12 @@ function App() {
 
   const changeSection = (section) => {
     setActiveSection(section);
-    const hash = section === "room" ? "#room" : section === "ai" ? "#ai" : "";
+    const hash = section === "quiz" ? "#quiz" : section === "room" ? "#room" : section === "ai" ? "#ai" : "";
     window.history.replaceState(null, "", `${window.location.pathname}${hash}`);
   };
 
   if (studentMode) {
-    return <StudentLobby initialRoomCode={joinCode} version={VERSION} />;
+    return quizStudent ? <QuizStudent initialCode={quizCode} version={VERSION} /> : <StudentLobby initialRoomCode={joinCode} version={VERSION} />;
   }
 
   if (authLoading) {
@@ -763,6 +767,7 @@ function App() {
             학생으로 입장하기
           </button>
 
+          <button type="button" className="student-entry-link" onClick={() => { const url = new URL(window.location.href); url.search = "?mode=quizstudent"; url.hash = ""; window.location.href = url.toString(); }}>퀴즈 학생 입장 (6자리 방 번호)</button>
           <footer>{VERSION}</footer>
         </section>
       </main>
@@ -780,14 +785,14 @@ function App() {
           <div>
             <p className="soft-kicker">수학 팀 배틀</p>
             <h1>
-              {activeSection === "questions" ? "문제은행" : activeSection === "ai" ? "AI 문제 만들기" : "게임방"}
+              {activeSection === "questions" ? "문제은행" : activeSection === "ai" ? "AI 문제 만들기" : activeSection === "quiz" ? "퀴즈 모드" : "게임방"}
             </h1>
             <p className="header-description">
               {activeSection === "questions"
                 ? "4지선다 문제를 모아두고 게임에 바로 사용할 수 있어요."
                 : activeSection === "ai"
                   ? "Gemini로 새 문제를 만들고 확인한 문제만 문제은행에 추가해요."
-                  : "학생을 팀으로 나누고 경기 전 대기실을 준비해요."}
+                  : activeSection === "quiz" ? "문제 세트를 준비하고 모두 함께 푸는 퀴즈를 진행해요." : "학생을 팀으로 나누고 경기 전 대기실을 준비해요."}
             </p>
           </div>
         </div>
@@ -814,6 +819,7 @@ function App() {
           >
             게임방
           </button>
+          <button type="button" className={activeSection === "quiz" ? "active" : ""} onClick={() => changeSection("quiz")}>퀴즈 모드</button>
         </nav>
 
         <div className="header-actions">
@@ -913,7 +919,7 @@ function App() {
                     {choices.map((choice, index) => (
                       <div key={`preview-${index}`} className={correctOption === index + 1 ? "is-answer" : ""}>
                         <span>{CHOICE_LABELS[index]}</span>
-                        <b>{choice || `보기 ${index + 1}`}</b>
+                        <b><MathText text={choice || `보기 ${index + 1}`}/></b>
                       </div>
                     ))}
                   </div>
@@ -951,6 +957,7 @@ function App() {
                   />
                 </label>
 
+                {explanation && <div className="math-edit-preview"><small>해설 미리보기</small><MathText text={explanation}/></div>}
                 {message && <div className="status-message">{message}</div>}
 
                 <div className="editor-save-actions">
@@ -1229,7 +1236,7 @@ function App() {
                                           {isObjective && (
                                             <button
                                               type="button"
-                                              className="variant-question-button"
+                                              className="edit-question-button"
                                               onClick={() => openSimilarQuestionGenerator([item])}
                                             >
                                               유사문제
@@ -1330,7 +1337,7 @@ function App() {
 
           <ExcelQuestionImporter user={user} questions={questions} />
         </>
-      ) : activeSection === "ai" ? (
+      ) : activeSection === "quiz" ? (<QuizHost key={user.uid} user={user} questions={questions} />) : activeSection === "ai" ? (
         <AIQuestionGenerator
           db={db}
           user={user}

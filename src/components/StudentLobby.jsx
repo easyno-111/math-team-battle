@@ -1,3 +1,4 @@
+import { rankTeam } from "../utils/teamRanking";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   get,
@@ -706,6 +707,10 @@ function StudentMatch({
   error,
   version,
 }) {
+  const teamRanks = rankTeam(Object.entries(room.participants || {}).map(([id, person]) => ({ id, ...person })).filter(person => person.team === team), room.playerStates || {});
+  const myRank = teamRanks.find(person => person.id === session.uid);
+  const comboNow = Number(myState?.currentCombo || 0);
+  const comboGoal = [[2, '강화탄'], [3, '쌍발탄'], [5, '대형 로켓'], [7, '집중포격'], [10, '피버 · 메테오']].find(([count]) => count > comboNow);
   const now = useNow(true);
   const remaining = Number(room.scheduledEndAt || now) - now;
   const [leftTeam, rightTeam] = getActiveTeams(room);
@@ -788,7 +793,9 @@ function StudentMatch({
             {submitting && <div className="student-choice-submitting">정답을 확인하고 있어요...</div>}
             {error && <div className="student-answer-error">{error}</div>}
 
+            <div className="student-combo-goal">{comboGoal ? <><span>다음 공격: {comboGoal[1]} · {comboGoal[0] - comboNow}문제 연속 정답 남음</span><progress aria-label="다음 콤보 공격까지 진행도" value={comboNow} max={comboGoal[0]} /></> : <strong>피버 발동 중! 연속 정답을 이어가세요.</strong>}</div>
             <div className="student-personal-stats">
+              <span className="student-team-rank">팀 내 {myRank?.tied ? "공동 " : ""}<strong>{myRank?.rank || "-"}위</strong> / {teamRanks.length}명</span>
               <span>정답 <strong>{myState?.correctCount || 0}</strong></span>
               <span>오답 <strong>{myState?.wrongCount || 0}</strong></span>
               <span>내 공격 <strong>{myState?.attackPower || 0}</strong></span>

@@ -1,3 +1,5 @@
+import { ProviderPicker, AdvancedHelp } from './AdvancedAI';
+import { useAdvancedAI } from '../utils/useAdvancedAI';
 import { useMemo, useState } from "react";
 import { GoogleGenAI } from "@google/genai";
 import {
@@ -153,6 +155,8 @@ function SimilarQuestionGenerator({
 }) {
   const apiKey = localStorage.getItem(API_KEY_STORAGE) || "";
   const model = localStorage.getItem(MODEL_STORAGE) || "gemini-3.5-flash-lite";
+  const [provider,setProvider]=useState('gemini');
+  const advanced=useAdvancedAI();
   const [variantType, setVariantType] = useState("same-concept");
   const [perSourceCount, setPerSourceCount] = useState(1);
   const [generated, setGenerated] = useState([]);
@@ -191,7 +195,7 @@ function SimilarQuestionGenerator({
       `5. 보기 네 개는 서로 중복되거나 같은 의미·동치값이면 안 됩니다.\n` +
       `6. 원본 문제 문장, 숫자, 보기, 정답을 그대로 복사한 문제는 만들지 마세요.\n` +
       `7. 같은 원본에서 여러 문제를 만들 때 서로도 충분히 다르게 만드세요.\n` +
-      `8. 수식은 제곱 x^2, 아래첨자 x_1, 루트 sqrt(...), 분수 1/2 형식으로 작성하세요.\n` +
+      `8. 수식은 $...$로 감싸고 제곱 x^{2}, 루트 \\sqrt{x}, 분수 \\frac{a}{b}로 작성하세요.\n` +
       `9. 해설은 짧고 명확하게 작성하세요.\n` +
       `10. easier는 필요하면 난이도를 한 단계 낮추고, harder는 한 단계 높일 수 있지만 범위는 바꾸지 마세요. 다른 변형은 원본 난이도를 유지하세요.\n\n` +
       `[원본 문제 JSON]\n${JSON.stringify(sourcePayload)}\n\n` +
@@ -199,7 +203,7 @@ function SimilarQuestionGenerator({
   };
 
   const handleGenerate = async () => {
-    if (!apiKey.trim()) {
+    if (provider==='gemini' && !apiKey.trim()) {
       setErrorMessage("Gemini API 키가 없습니다. 먼저 'AI 문제 만들기'에서 Gemini 연결을 완료해주세요.");
       return;
     }
@@ -208,11 +212,10 @@ function SimilarQuestionGenerator({
     try {
       setGenerating(true);
       setErrorMessage("");
-      setGenerated([]);
       checkAndRecordAiRequest();
 
-      const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
-      const response = await ai.models.generateContent({
+      const ai = provider==='gemini'?new GoogleGenAI({ apiKey: apiKey.trim() }):null;
+      const response = provider==='openai'?null:await ai.models.generateContent({
         model,
         contents: buildPrompt(),
         config: {
@@ -222,7 +225,7 @@ function SimilarQuestionGenerator({
         },
       });
 
-      const parsed = JSON.parse(response.text || "{}");
+      const parsed = provider==='openai'?await advanced.run({kind:'variant',prompt:buildPrompt()}):JSON.parse(response.text || '{}');
       const rows = Array.isArray(parsed.variants) ? parsed.variants.slice(0, totalRequested) : [];
       if (!rows.length) throw new Error("No variants generated");
 
@@ -233,6 +236,8 @@ function SimilarQuestionGenerator({
         const item = {
           id: `${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
           parentIndex,
+          aiProvider:provider,
+          aiModel:parsed._aiModel || model,
           parentQuestionId: parent.id,
           parentQuestion: parent.question,
           category: getCategory(parent),
@@ -253,7 +258,7 @@ function SimilarQuestionGenerator({
       onMessage?.(`원본 ${sources.length}개에서 유사문제 ${local.length}개를 생성했습니다. 저장 전에 정답을 확인해주세요.`);
     } catch (error) {
       console.error("유사문제 생성 오류:", error);
-      setErrorMessage(getErrorMessage(error));
+      setErrorMessage(provider==='openai'?error.message:getErrorMessage(error));
     } finally {
       setGenerating(false);
     }
@@ -286,9 +291,9 @@ function SimilarQuestionGenerator({
           unit: item.unit,
           difficulty: item.difficulty,
           enabled: true,
-          source: "gemini-variant",
-          aiProvider: "gemini",
-          aiModel: model,
+          source: `${item.aiProvider || "gemini"}-variant`,
+          aiProvider: item.aiProvider || "gemini",
+          aiModel: item.aiModel || model,
           parentQuestionId: item.parentQuestionId,
           variantType,
           createdBy: user.uid,
@@ -308,6 +313,7 @@ function SimilarQuestionGenerator({
 
   return (
     <div className="variant-overlay" role="presentation" onMouseDown={onClose}>
+      {advanced.dialog}
       <section className="variant-dialog" onMouseDown={(event) => event.stopPropagation()}>
         <header className="variant-dialog-header">
           <div>
@@ -326,20 +332,10 @@ function SimilarQuestionGenerator({
           <section className="variant-config-card">
             <div className="variant-config-heading">
               <span>1</span>
-              <div><strong>AI 엔진</strong><small>현재는 무료 Gemini 사용</small></div>
+              <div><strong>AI 엔진</strong><small>생성 엔진 선택</small></div>
             </div>
-            <div className="ai-provider-grid variant-provider-grid">
-              <button type="button" className="ai-provider-card selected">
-                <span>무료</span>
-                <b>Gemini Flash-Lite</b>
-                <small>현재 연결된 키 사용</small>
-              </button>
-              <button type="button" className="ai-provider-card locked" disabled>
-                <span>고급</span>
-                <b>OpenAI</b>
-                <small>보안 준비 후 활성화</small>
-              </button>
-            </div>
+            <ProviderPicker value={provider} onChange={setProvider} disabled={generating||saving}/>
+            {provider==='openai'&&<AdvancedHelp/>}
           </section>
 
           <section className="variant-config-card variant-type-card">

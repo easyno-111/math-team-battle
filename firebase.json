@@ -15,5 +15,18 @@
   },
   "database": {
     "rules": "database.rules.json"
-  }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "advanced-ai",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "*.test.cjs",
+        "*.log",
+        ".env.example"
+      ]
+    }
+  ]
 }

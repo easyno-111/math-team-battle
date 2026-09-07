@@ -1,3 +1,5 @@
+import { ProviderPicker, AdvancedHelp } from './AdvancedAI';
+import { useAdvancedAI } from '../utils/useAdvancedAI';
 import { useMemo, useState } from "react";
 import { GoogleGenAI } from "@google/genai";
 import MathText from "./MathText";
@@ -202,6 +204,10 @@ function createLocalQuestion(raw, index, existingQuestions) {
 }
 
 function AIQuestionGenerator({ db, user, questions, questionUnits, questionCategories = [], onMessage }) {
+  const [provider,setProvider]=useState('gemini');
+  const advanced=useAdvancedAI();
+  const [extraInstructions, setExtraInstructions] = useState("");
+  const [directMode, setDirectMode] = useState(false);
   const [apiKey, setApiKey] = useState(() => localStorage.getItem(API_KEY_STORAGE) || "");
   const [rememberKey, setRememberKey] = useState(() => Boolean(localStorage.getItem(API_KEY_STORAGE)));
   const [model, setModel] = useState(() => localStorage.getItem(MODEL_STORAGE) || "gemini-3.5-flash-lite");
@@ -332,6 +338,8 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
   };
 
   const buildPrompt = (desiredCount, webReference = "") => {
+    const promptCategory = category.trim() || "자유 주제";
+    const promptUnit = unit.trim() || "직접 명령";
     const selectedTypes = [
       types.first ? typeLabels[0] : "",
       types.second ? typeLabels[1] : "",
@@ -349,7 +357,7 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
 
     const modeGuide = {
       academic:
-        `교과 학습용 문항입니다. '${category}'의 '${unit}' 범위를 벗어나지 말고, 계산이나 사실 확인이 필요한 경우 직접 다시 검증하세요. 학생이 배우는 수준에 맞는 표현을 사용하세요.`,
+        `교과 학습용 문항입니다. '${promptCategory}'의 '${promptUnit}' 범위를 벗어나지 말고, 계산이나 사실 확인이 필요한 경우 직접 다시 검증하세요. 학생이 배우는 수준에 맞는 표현을 사용하세요.`,
       general:
         `상식 퀴즈입니다. 널리 확인 가능한 사실을 바탕으로 하며 정답이 명확히 하나인 문제만 만드세요. 시대에 따라 쉽게 바뀌는 정보나 논쟁적인 사실은 피하세요.`,
       nonsense:
@@ -359,9 +367,10 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
     }[quizMode] || "정답이 하나인 4지선다 퀴즈를 만드세요.";
 
     return `당신은 교실용 4지선다 퀴즈 출제 전문가입니다.\n\n` +
-      `퀴즈 성격: ${modeMeta.label}\n분야/과목: ${category}\n주제/단원: ${unit}\n난이도: ${difficulty}\n문제 수: ${desiredCount}\n` +
+      `퀴즈 성격: ${modeMeta.label}\n분야/과목: ${promptCategory}\n주제/단원: ${promptUnit}\n난이도: ${difficulty}\n문제 수: ${desiredCount}\n` +
       `문제 구성: ${selectedTypes.length ? selectedTypes.join(", ") : "골고루"}\n\n` +
-      `${modeGuide}\n\n` +
+      `${directMode ? "사용자의 직접 명령을 중심으로 문제 내용을 구성하세요." : modeGuide}\n\n` +
+      `사용자 추가 요청: ${extraInstructions.trim() || "없음"}\n추가 요청은 내용과 표현에 우선 적용하되, 4지선다 형식·문항 수·저장 분류는 설정을 유지하세요.\n` +
       `다음 공통 규칙을 반드시 지키세요.\n` +
       `1. 각 문제는 보기 4개인 4지선다형입니다.\n` +
       `2. 정답은 반드시 하나만 존재해야 하며 correctOption은 1,2,3,4 중 하나입니다.\n` +
@@ -369,9 +378,9 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
       `4. 정답과 explanation이 실제 정답과 정확히 일치하는지 출력 전에 다시 확인합니다.\n` +
       `5. 오답 보기는 너무 황당하지 않게, 학습자나 참가자가 실제로 고를 법하게 만듭니다.\n` +
       `6. 문제 문장이나 보기에서 정답을 노골적으로 암시하지 않습니다.\n` +
-      `7. 수식이 필요한 경우 제곱은 x^2, 아래첨자는 x_1, 루트는 sqrt(...), 분수는 1/2처럼 작성합니다.\n` +
+      `7. 수식은 $...$로 감싸고 제곱 x^{2}, 아래첨자 x_{1}, 루트 \\sqrt{x}, 분수 \\frac{a}{b}로 작성합니다. 복잡한 매크로나 배열 환경은 쓰지 않습니다.\n` +
       `8. explanation은 짧고 이해하기 쉽게 작성합니다.\n` +
-      `9. category는 반드시 '${category}', unit은 반드시 '${unit}', difficulty는 반드시 '${difficulty}'로 출력합니다.\n` +
+      `9. category는 반드시 '${promptCategory}', unit은 반드시 '${promptUnit}', difficulty는 반드시 '${difficulty}'로 출력합니다.\n` +
       (avoidDuplicates && sameTopicQuestions
         ? `10. 아래 기존 문제들과 숫자나 표현만 조금 바꾼 수준의 중복 문제는 피하세요.\n[기존 문제]\n${sameTopicQuestions}\n`
         : "") +
@@ -388,15 +397,16 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
     `최소 ${Math.max(desiredCount * 2, 12)}개 정도의 후보를 찾아 중복을 제거하세요. 원문 페이지를 길게 복사하지 말고 핵심만 짧게 정리하세요.`;
 
   const handleGenerate = async () => {
-    if (!apiKey.trim()) {
+    if (provider==='gemini' && !apiKey.trim()) {
       setErrorMessage("먼저 Gemini API 키를 입력해주세요.");
       return;
     }
-    if (!category.trim()) {
+    if (directMode && !extraInstructions.trim()) { setErrorMessage("직접 명령을 입력해주세요."); return; }
+    if (!directMode && !category.trim()) {
       setErrorMessage("생성할 분야/과목을 입력해주세요.");
       return;
     }
-    if (!unit.trim()) {
+    if (!directMode && !unit.trim()) {
       setErrorMessage("생성할 주제/단원을 입력해주세요.");
       return;
     }
@@ -406,13 +416,12 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
     try {
       setGenerating(true);
       setErrorMessage("");
-      setGenerated([]);
       persistSettings();
       checkAndRecordAiRequest();
-      const ai = getClient();
+      const ai = provider==='gemini'?getClient():null;
       let webReference = "";
 
-      if (quizMode === "nonsense") {
+      if (quizMode === "nonsense" && provider==='gemini') {
         notify("Google 검색에서 실제 넌센스 문제를 찾고 있어요...");
         let searchResponse;
         try {
@@ -444,7 +453,7 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
         setGroundingSources([]);
       }
 
-      const response = await ai.models.generateContent({
+      const response = provider==='openai'?null:await ai.models.generateContent({
         model,
         contents: buildPrompt(safeCount, webReference),
         config: {
@@ -454,11 +463,12 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
         },
       });
 
-      const parsed = JSON.parse(response.text || "{}");
+      const parsed = provider==='openai'?await advanced.run({kind:quizMode==='nonsense'?'bankWeb':'bank',prompt:buildPrompt(safeCount)}):JSON.parse(response.text || '{}');
+      if(provider==='openai')setGroundingSources(parsed._sources || []);
       const rows = Array.isArray(parsed.questions) ? parsed.questions.slice(0, safeCount) : [];
       if (!rows.length) throw new Error("No questions generated");
 
-      const localQuestions = rows.map((item, index) => createLocalQuestion(item, index, questions));
+      const localQuestions = rows.map((item, index) => ({...createLocalQuestion(item, index, questions),aiProvider:provider,aiModel:parsed._aiModel || model,searchGrounded:quizMode==='nonsense'}));
 
       // 생성 결과 내부 중복도 함께 감지한다.
       localQuestions.forEach((item, index) => {
@@ -476,7 +486,7 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
       notify(`AI가 ${localQuestions.length}개 문제를 생성했습니다. 저장 전에 정답과 해설을 확인해주세요.`);
     } catch (error) {
       console.error("Gemini 문제 생성 오류:", error);
-      setErrorMessage(getErrorMessage(error));
+      setErrorMessage(provider==='openai'?error.message:getErrorMessage(error));
     } finally {
       setGenerating(false);
     }
@@ -532,7 +542,7 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
       setReviewing(true);
       setErrorMessage("");
       checkAndRecordAiRequest();
-      const ai = getClient();
+      const ai = provider==='gemini'?getClient():null;
       const payload = targets.map((item, index) => ({
         index: index + 1,
         question: item.question,
@@ -540,16 +550,8 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
         correctOption: item.correctOption,
         explanation: item.explanation,
       }));
-      const response = await ai.models.generateContent({
-        model,
-        contents: `다음은 '${modeMeta.label}' 형식의 '${category} / ${unit}' 4지선다 문제입니다. 각 문제를 독립적으로 검토하고 정답번호가 맞는지, 정답이 하나뿐인지, 보기 중복이나 사실·계산·논리 오류가 없는지 검사하세요. 교과 학습이면 계산과 개념을 직접 확인하고, 상식이면 사실의 명확성을, 넌센스면 정답의 납득 가능성과 중의성을 확인하세요. 정상이라면 valid=true와 짧은 확인 문구를, 오류 가능성이 있으면 valid=false와 구체적인 이유를 작성하세요.\n\n${JSON.stringify(payload)}`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: REVIEW_SCHEMA,
-          temperature: 0.1,
-        },
-      });
-      const parsed = JSON.parse(response.text || "{}");
+      const reviewPrompt = `다음은 '${modeMeta.label}' 형식의 '${category} / ${unit}' 4지선다 문제입니다. 각 문제를 독립적으로 검토하고 정답번호가 맞는지, 정답이 하나뿐인지, 보기 중복이나 사실·계산·논리 오류가 없는지 검사하세요. 교과 학습이면 계산과 개념을 직접 확인하고, 상식이면 사실의 명확성을, 넌센스면 정답의 납득 가능성과 중의성을 확인하세요. 정상이라면 valid=true와 짧은 확인 문구를, 오류 가능성이 있으면 valid=false와 구체적인 이유를 작성하세요.\n\n${JSON.stringify(payload)}`;
+      const parsed = provider==='openai' ? await advanced.run({kind:'review',prompt:reviewPrompt}) : JSON.parse((await ai.models.generateContent({model,contents:reviewPrompt,config:{responseMimeType:'application/json',responseSchema:REVIEW_SCHEMA,temperature:0.1}})).text || '{}');
       const reviews = Array.isArray(parsed.reviews) ? parsed.reviews : [];
       const reviewMap = new Map(reviews.map((review) => [Number(review.index), review]));
       setGenerated((current) => {
@@ -564,7 +566,7 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
       notify("AI 2차 검수를 완료했습니다. '확인 필요' 문제는 교사가 직접 다시 확인해주세요.");
     } catch (error) {
       console.error("Gemini 문제 검수 오류:", error);
-      setErrorMessage(getErrorMessage(error));
+      setErrorMessage(provider==='openai'?error.message:getErrorMessage(error));
     } finally {
       setReviewing(false);
     }
@@ -591,10 +593,10 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
           unit: item.unit.trim(),
           difficulty: item.difficulty,
           enabled: true,
-          source: quizMode === "nonsense" ? "gemini-ai-web-grounded" : "gemini-ai",
-          aiProvider: "gemini",
-          aiModel: model,
-          searchGrounded: quizMode === "nonsense",
+          source: `${item.aiProvider || "gemini"}-ai`,
+          aiProvider: item.aiProvider || "gemini",
+          aiModel: item.aiModel || model,
+          searchGrounded: item.searchGrounded === true,
           createdBy: user.uid,
           createdAt: serverTimestamp(),
         });
@@ -612,6 +614,7 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
 
   return (
     <section className="ai-question-studio">
+      {advanced.dialog}
       <div className="ai-studio-intro">
         <div>
           <span className="section-pill peach">AI 문제 생성실</span>
@@ -632,27 +635,15 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
             <div className="panel-title compact-title">
               <div>
                 <span className="section-pill mint">1. AI 연결</span>
-                <h3>Gemini API 키</h3>
+                <h3>AI 연결 설정</h3>
               </div>
             </div>
 
             <div className="ai-provider-box">
               <strong>AI 엔진</strong>
-              <div className="ai-provider-grid">
-                <button type="button" className="ai-provider-card selected">
-                  <span>무료</span>
-                  <b>Gemini Flash-Lite</b>
-                  <small>현재 사용 가능</small>
-                </button>
-                <button type="button" className="ai-provider-card locked" disabled>
-                  <span>고급</span>
-                  <b>OpenAI</b>
-                  <small>Blaze 보안 점검 후 활성화</small>
-                </button>
-              </div>
-              <p>OpenAI 유료 키는 브라우저에 저장하지 않습니다. 서버 보안과 비용 제한을 먼저 준비한 뒤 연결해요.</p>
+              <ProviderPicker value={provider} onChange={setProvider} disabled={generating||reviewing||saving}/>
             </div>
-
+            {provider==='openai'?<AdvancedHelp/>:<>
             <label>
               API 키
               <input
@@ -715,6 +706,7 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
             <p className="ai-key-note">
               키는 Firebase 문제 데이터에는 저장하지 않아요. '기억하기'를 켜면 이 브라우저의 로컬 저장소에만 저장됩니다.
             </p>
+            </>}
             <p className="ai-key-note ai-local-limit-note">
               연속 클릭 보호: 문제 생성·AI 검수 요청은 이 브라우저에서 분당 5회, 하루 60회로 제한합니다. 이 제한은 실수 방지용이며 서버 보안 한도는 아닙니다.
             </p>
@@ -864,11 +856,14 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
               <span /> 기존 문제와 비슷한 문제 최대한 피하기
             </label>
 
+            <label className="ai-extra-request">추가 요청 / 직접 명령<textarea rows={4} value={extraInstructions} onChange={event => setExtraInstructions(event.target.value)} placeholder="계산은 간단하게, 자주 하는 실수를 오답에 넣어줘. 해설은 세 문장 이내." /></label>
+            <label className="qm-check"><input type="checkbox" checked={directMode} onChange={event => setDirectMode(event.target.checked)} />분야·단원 없이 직접 명령 중심으로 만들기</label>
+            <p className="ai-direct-hint">내용은 직접 명령을 우선 적용합니다. 보기 4개·문항 수·선택한 저장 분류는 유지합니다.</p>
             <button
               type="button"
               className="primary-button ai-generate-button"
               onClick={handleGenerate}
-              disabled={generating || !apiKey.trim()}
+              disabled={generating || reviewing || (provider==='gemini' && !apiKey.trim())}
             >
               {generating ? "AI가 문제를 만들고 있어요..." : `${Math.min(MAX_GENERATE_COUNT, Number(count) || 1)}문제 생성하기`}
             </button>
@@ -972,12 +967,12 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
                           <label>주제/단원<input value={item.unit} onChange={(event) => updateGenerated(item.id, "unit", event.target.value)} /></label>
                         </div>
                         <label>난이도<select value={item.difficulty} onChange={(event) => updateGenerated(item.id, "difficulty", event.target.value)}>{DIFFICULTIES.map((level) => <option key={level}>{level}</option>)}</select></label>
-                        <label>문제<textarea rows={3} value={item.question} onChange={(event) => updateGenerated(item.id, "question", event.target.value)} /></label>
+                        <label>문제<textarea rows={3} value={item.question} onChange={(event) => updateGenerated(item.id, "question", event.target.value)} /></label><div className="math-edit-preview"><small>문제 미리보기</small><MathText text={item.question}/></div>
                         <div className="ai-inline-choices">
                           {item.choices.map((choice, choiceIndex) => (
                             <label key={`${item.id}-edit-${choiceIndex}`}>
                               보기 {choiceIndex + 1}
-                              <input value={choice} onChange={(event) => updateGeneratedChoice(item.id, choiceIndex, event.target.value)} />
+                              <input value={choice} onChange={(event) => updateGeneratedChoice(item.id, choiceIndex, event.target.value)} /><span className="math-edit-preview"><MathText text={choice}/></span>
                               <span className="correct-choice-selector">
                                 <input
                                   type="radio"
@@ -989,7 +984,7 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
                             </label>
                           ))}
                         </div>
-                        <label>해설<textarea rows={2} value={item.explanation} onChange={(event) => updateGenerated(item.id, "explanation", event.target.value)} /></label>
+                        <label>해설<textarea rows={2} value={item.explanation} onChange={(event) => updateGenerated(item.id, "explanation", event.target.value)} /></label><div className="math-edit-preview"><small>해설 미리보기</small><MathText text={item.explanation}/></div>
                       </div>
                     )}
 

@@ -1,0 +1,82 @@
+import { ProviderPicker, AdvancedHelp } from '../components/AdvancedAI';
+import { useAdvancedAI } from '../utils/useAdvancedAI';
+import { useEffect, useMemo, useState } from 'react';
+import { onValue, ref, set, remove, serverTimestamp } from 'firebase/database';
+import { adminRealtime } from '../realtime';
+import { TYPES, blankQuestion, fromBank, grade, newId, publicQuestion, shuffle, validateQuestion, validateSet } from './model';
+import { generateQuiz } from './ai';
+import AnswerInput from './AnswerInput';
+import MathText from '../components/MathText';
+
+function readDraft(uid) {try{const data=JSON.parse(localStorage.getItem(`qm-draft:${uid}`));return data && Array.isArray(data.questions) && typeof data.title==='string' ? data : {id:newId(),title:'새 퀴즈 세트',questions:[]};}catch{return {id:newId(),title:'새 퀴즈 세트',questions:[]};}}
+export default function Workshop({user,questions,onCreate}) {
+  const [draft,setDraft]=useState(()=>readDraft(user.uid)),[saved,setSaved]=useState([]),[selected,setSelected]=useState(0),[mode,setMode]=useState('simple');
+  const [category,setCategory]=useState('전체'),[unit,setUnit]=useState('전체'),[difficulty,setDifficulty]=useState('전체'),[count,setCount]=useState(10),[duration,setDuration]=useState(30);
+  const [message,setMessage]=useState(''),[busy,setBusy]=useState(false),[undo,setUndo]=useState(null),[preview,setPreview]=useState(null),[previewResult,setPreviewResult]=useState('');
+  const [apiKey,setApiKey]=useState(()=>localStorage.getItem('math-team-battle:gemini-api-key') || ''),[model,setModel]=useState(()=>localStorage.getItem('math-team-battle:gemini-model') || 'gemini-2.5-flash-lite');
+  const [conversionSource,setConversionSource]=useState(null);
+  const [prompt,setPrompt]=useState(''),[aiAction,setAiAction]=useState('new'),[candidate,setCandidate]=useState(null),[mix,setMix]=useState({choice:2,ox:1,short:1,slider:1,order:1}),[options,setOptions]=useState({showQuestion:true,autoAdvance:false});
+  const [provider,setProvider]=useState('gemini');
+  const advanced=useAdvancedAI();
+  const q=draft.questions[selected];
+  const bank=useMemo(()=>questions.filter(q=>q.enabled!==false).map(fromBank).filter(q=>!validateQuestion(q).length),[questions]);
+  const pool=bank.filter(q=>(category==='전체'||q.category===category)&&(unit==='전체'||q.unit===unit)&&(difficulty==='전체'||q.difficulty===difficulty));
+  useEffect(()=>{try{localStorage.setItem(`qm-draft:${user.uid}`,JSON.stringify(draft));}catch{/* Manual cloud save remains available. */}},[draft,user.uid]);
+  useEffect(()=>{if(!adminRealtime)return undefined;return onValue(ref(adminRealtime,`quizSets/${user.uid}`),s=>setSaved(Object.entries(s.val() || {}).map(([id,item])=>({...item,id})).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))),e=>setMessage(`세트 불러오기 실패: ${e.message}`));},[user.uid]);
+  function edit(patch) {setDraft(d=>({...d,questions:d.questions.map((item,i)=>i===selected?{...item,...patch}:item)}));}
+  function add(type='choice') {setUndo(draft);setSelected(draft.questions.length);setDraft(d=>({...d,questions:[...d.questions,blankQuestion(type)]}));setMode('custom');}
+  function move(index,delta) {const next=[...draft.questions],to=index+delta;if(to<0||to>=next.length)return;[next[index],next[to]]=[next[to],next[index]];setUndo(draft);setDraft({...draft,questions:next});setSelected(to);}
+  async function save(copy=false) {
+    const errors=validateSet(draft);if(errors.length){setMessage(errors.join('\n'));return;}
+    if(!adminRealtime){setMessage('Realtime Database 설정이 필요합니다.');return;}
+    setBusy(true);try{const data={...draft,id:copy?newId():draft.id};await set(ref(adminRealtime,`quizSets/${user.uid}/${data.id}`),{...data,updatedAt:serverTimestamp()});setDraft(data);setMessage('문제 세트를 저장했습니다.');}catch(e){setMessage(`저장 실패: ${e.message}`);}finally{setBusy(false);}
+  }
+  async function ai(batch=false) {
+    if(!batch&&!q){setMessage('문제를 추가하거나 선택하세요.');return;}
+    if(!batch&&aiAction==='choices'&&q.type!=='choice'){setMessage('보기 수정은 객관식에서만 사용할 수 있습니다.');return;}
+    setBusy(true);setCandidate(null);setMessage('AI가 문제 초안을 만들고 있습니다…');
+    try {
+      const types=batch?Object.entries(mix).flatMap(([t,n])=>Array.from({length:Math.max(0,Math.min(20,Number(n)||0))},()=>t)):[q.type];
+      const result=await generateQuiz({apiKey,model,prompt,types,advanced:provider==='openai'?advanced.run:undefined,source:batch?null:aiAction==='convert'&&conversionSource?conversionSource:q,action:batch?'new':aiAction});
+      setCandidate({...result,batch,targetId:q?.id,action:aiAction});setMessage('초안을 검토한 뒤 적용하세요. 문제 내용과 정답도 직접 확인해주세요.');
+    }catch(e){setMessage(`AI 생성 실패: ${e.message}`);}finally{setBusy(false);}
+  }
+  function applyCandidate() {
+    setUndo(draft);
+    if(candidate.batch){setDraft(d=>({...d,questions:[...d.questions,...candidate.questions]}));setSelected(draft.questions.length);}
+    else setDraft(d=>({...d,questions:d.questions.map(item=>item.id===candidate.targetId?{...candidate.questions[0],id:item.id}:item)}));
+    setCandidate(null);setMode('custom');setMessage('편집기에 적용했습니다. 확인 후 세트를 저장하세요.');
+  }
+  function buildSimple() {if(!pool.length){setMessage('선택한 조건에 출제 가능한 객관식 문제가 없습니다.');return;}setUndo(draft);setDraft({id:newId(),title:`${unit==='전체'?'복습 퀴즈':unit} ${Math.min(count,pool.length)}문제`,questions:shuffle(pool).slice(0,Math.max(1,Math.min(40,Number(count)||1))).map(q=>({...q,duration:Number(duration)}))});setSelected(0);setMessage('자동 구성했습니다. 미리보기 후 방을 만들거나 세트를 저장하세요.');}
+  async function create(){const errors=validateSet(draft);if(errors.length){setMessage(errors.join('\n'));return;}setBusy(true);try{if(!adminRealtime)throw new Error('Realtime Database 설정이 필요합니다.');await set(ref(adminRealtime,`quizSets/${user.uid}/${draft.id}`),{...draft,updatedAt:serverTimestamp()});await onCreate(draft,options);}catch(e){setMessage(`방 만들기 실패: ${e.message}`);}finally{setBusy(false);}}
+  return <section className="qm-workshop">
+    <header className="qm-title"><div><small>QUIZ & · v0.12.2</small><h2>퀴즈 모드</h2><p>같은 문제를 함께 풀고, 정확도와 속도로 겨뤄요.</p></div><div className="qm-tabs"><button className={mode==='simple'?'active':''} onClick={()=>setMode('simple')}>단순모드</button><button className={mode==='custom'?'active':''} onClick={()=>setMode('custom')}>커스텀모드</button></div></header>
+    {message&&<p className="qm-message" role="status">{message}</p>}
+    <div className="qm-workgrid"><aside className="qm-panel"><h3>저장된 세트</h3><button disabled={busy} onClick={()=>{setUndo(draft);setDraft({id:newId(),title:'새 퀴즈 세트',questions:[]});setSelected(0);}}>새 세트 만들기</button><div className="qm-saved">{saved.map(item=><button key={item.id} disabled={busy} className={draft.id===item.id?'selected':''} onClick={()=>{setUndo(draft);setDraft({...item,questions:item.questions||[]});setSelected(0);setCandidate(null);}}><b>{item.title}</b><small>{item.questions?.length||0}문제 · 불러오기</small></button>)}</div><small>초안은 이 기기에 자동 보관됩니다. ‘세트 저장’하면 다른 기기에서도 불러올 수 있습니다.</small></aside>
+    <div className="qm-panel qm-editor">
+      <label>세트 이름<input maxLength={80} value={draft.title} onChange={e=>setDraft({...draft,title:e.target.value})}/></label>
+      {mode==='simple'&&<div className="qm-simple"><div className="qm-fields"><label>분야<select value={category} onChange={e=>{setCategory(e.target.value);setUnit('전체');}}>{['전체',...new Set(bank.map(q=>q.category))].map(v=><option key={v}>{v}</option>)}</select></label><label>단원<select value={unit} onChange={e=>setUnit(e.target.value)}>{['전체',...new Set(bank.filter(q=>category==='전체'||q.category===category).map(q=>q.unit))].map(v=><option key={v}>{v}</option>)}</select></label><label>난이도<select value={difficulty} onChange={e=>setDifficulty(e.target.value)}>{['전체','쉬움','보통','어려움','도전'].map(v=><option key={v}>{v}</option>)}</select></label><label>문제 수<input type="number" min="1" max="40" value={count} onChange={e=>setCount(Number(e.target.value))}/></label><label>문제당 초<input type="number" min="10" max="240" value={duration} onChange={e=>setDuration(Number(e.target.value))}/></label></div><button onClick={buildSimple} disabled={busy}>조건에 맞는 문제 자동 구성 ({pool.length}개 가능)</button></div>}
+      <div className="qm-row"><b>{draft.questions.length}문제</b><button disabled={busy||draft.questions.length>=40} onClick={()=>add()}>문제 추가</button><button disabled={!undo||busy} onClick={()=>{setDraft(undo);setSelected(0);setUndo(null);}}>이전 편집으로 되돌리기</button></div>
+      <div className="qm-question-strip">{draft.questions.map((item,i)=><button key={item.id} disabled={busy} className={i===selected?'selected':''} onClick={()=>{setSelected(i);setCandidate(null);setConversionSource(null);}}>{i+1}. {TYPES[item.type]}</button>)}</div>
+      {q&&<fieldset disabled={busy}><legend>{selected+1}번 문제</legend><div className="qm-fields"><label>문제 유형<select value={q.type} onChange={e=>{setConversionSource(q);edit({...blankQuestion(e.target.value),id:q.id,question:q.question,explanation:q.explanation});setCandidate(null);setAiAction('convert');}}>{Object.entries(TYPES).map(([k,v])=><option value={k} key={k}>{v}</option>)}</select></label><label>제한시간(초)<input type="number" min="10" max="240" value={q.duration} onChange={e=>edit({duration:Number(e.target.value)})}/></label></div>
+      <label>문제<textarea rows="3" maxLength={2000} value={q.question} onChange={e=>edit({question:e.target.value})}/></label><div className="math-edit-preview"><small>문제 미리보기</small><MathText text={q.question}/></div>
+      {(q.type==='choice'||q.type==='ox')&&<div className="qm-choice-edit">{q.choices.map((c,i)=><label key={i}><input type="radio" name="correct" checked={Number(q.correctIndex)===i} onChange={()=>edit({correctIndex:i})}/><span>{i+1}</span><input aria-label={`${i+1}번 보기`} readOnly={q.type==='ox'} value={c} maxLength={300} onChange={e=>edit({choices:q.choices.map((v,j)=>i===j?e.target.value:v)})}/></label>)}<small>정답 보기의 원을 선택하세요.</small></div>}
+      {q.type==='short'&&<label>허용 정답 (줄마다 하나)<textarea value={q.answers.join('\n')} onChange={e=>edit({answers:e.target.value.split('\n')})}/><small>띄어쓰기·영문 대소문자 차이는 자동 허용합니다. 분수와 소수 등 다른 표기는 직접 추가하세요.</small></label>}
+      {q.type==='slider'&&<><div className="qm-fields">{[['min','최솟값'],['max','최댓값'],['step','이동 간격'],['target','정답'],['tolerance','허용 오차']].map(([key,label])=><label key={key}>{label}<input type="number" step="any" value={q[key]} onChange={e=>edit({[key]:Number(e.target.value)})}/></label>)}</div><label className="qm-check"><input type="checkbox" checked={q.partial} onChange={e=>edit({partial:e.target.checked})}/>정답에 가까울수록 부분 점수</label></>}
+      {q.type==='order'&&<label>카드 내용 (정답 순서대로, 한 줄에 하나)<textarea rows="6" value={q.items.join('\n')} onChange={e=>edit({items:e.target.value.split('\n')})}/><small>2~6개를 입력하세요. 학생에게는 섞어서 보여줍니다.</small></label>}
+      <label>해설<textarea rows="2" value={q.explanation} onChange={e=>edit({explanation:e.target.value})}/></label><div className="math-edit-preview"><small>해설 미리보기</small><MathText text={q.explanation}/></div>
+      <div className="qm-row"><button onClick={()=>move(selected,-1)} disabled={selected===0}>앞으로</button><button onClick={()=>move(selected,1)} disabled={selected===draft.questions.length-1}>뒤로</button><button onClick={()=>{const errors=validateQuestion(q);if(errors.length){setMessage(errors.join('\n'));return;}setPreview({q,public:publicQuestion(q)});setPreviewResult('');}}>학생 화면 미리보기</button><button onClick={()=>{setUndo(draft);setDraft({...draft,questions:draft.questions.filter((_,i)=>i!==selected)});setSelected(Math.max(0,selected-1));setCandidate(null);}}>문제 삭제</button></div>
+      {validateQuestion(q).length>0&&<p className="qm-validation">{validateQuestion(q).join(' · ')}</p>}
+      </fieldset>}
+      {mode==='custom'&&<details className="qm-bank"><summary>문제은행에서 가져오기</summary><div className="qm-bank-items">{bank.map(item=><button key={item.id} disabled={busy||draft.questions.length>=40} onClick={()=>{setUndo(draft);setDraft({...draft,questions:[...draft.questions,{...item,id:newId()}]});setSelected(draft.questions.length);}}>{item.unit} · {item.question.slice(0,80)}</button>)}</div></details>}
+      {mode==='custom'&&<section className="qm-ai"><h3>AI로 만들기 · 선택한 유형에 맞춰 채우기</h3><ProviderPicker value={provider} onChange={setProvider} disabled={busy}/>{provider==='openai'?<AdvancedHelp/>:<><div className="qm-fields"><label>Gemini API 키<input type="password" value={apiKey} onChange={e=>setApiKey(e.target.value)} autoComplete="off"/></label><label>모델<input value={model} onChange={e=>setModel(e.target.value)}/></label></div><small>기존 AI 화면에서 저장한 설정을 불러옵니다. 여기서 입력한 키는 새로 저장하지 않습니다.</small></>}
+      <label>원하는 문제·수정 요청<textarea rows="3" value={prompt} onChange={e=>setPrompt(e.target.value)} placeholder="고1 함수 복습 문제. 계산은 간단하게, 해설은 세 문장 이내로 만들어줘."/></label><div className="qm-row"><select value={aiAction} onChange={e=>setAiAction(e.target.value)}><option value="new">선택 유형으로 새로 생성</option><option value="revise">현재 문제 수정</option><option value="convert">현재 내용으로 유형 재구성</option><option value="explanation">해설만 수정</option>{q?.type==='choice'&&<option value="choices">보기만 수정</option>}</select><button disabled={busy||!q} onClick={()=>ai(false)}>{busy?'AI 처리 중…':'선택 문제 AI 초안 생성'}</button></div>
+      <details><summary>여러 유형을 섞어 한 번에 만들기</summary><div className="qm-fields">{Object.entries(TYPES).map(([t,label])=><label key={t}>{label}<input type="number" min="0" max="20" value={mix[t]} onChange={e=>setMix({...mix,[t]:Number(e.target.value)})}/></label>)}</div><button disabled={busy} onClick={()=>ai(true)}>혼합 세트 AI 초안 생성 (최대 20문제)</button></details>
+      {candidate&&<div className="qm-candidate"><h4>AI 초안 검토</h4>{candidate.note&&<p>{candidate.note}</p>}{candidate.questions.map((item,i)=><article key={item.id}><b>{i+1}. {TYPES[item.type]}</b><MathText text={item.question}/><small><MathText text={item.explanation}/></small></article>)}{candidate.errors.length>0&&<p className="qm-validation">{candidate.errors.join('\n')}</p>}<button disabled={busy||candidate.batch&&draft.questions.length+candidate.questions.length>40} onClick={applyCandidate}>편집기에 적용하고 검토</button><button onClick={()=>setCandidate(null)}>취소</button></div>}
+      </section>}
+      <div className="qm-launch"><label className="qm-check"><input type="checkbox" checked={options.showQuestion} onChange={e=>setOptions({...options,showQuestion:e.target.checked})}/>학생 기기에도 문제 표시</label><label className="qm-check"><input type="checkbox" checked={options.autoAdvance} onChange={e=>setOptions({...options,autoAdvance:e.target.checked})}/>결과 6초 후 다음 문제 자동 진행 (읽기 5초)</label><div className="qm-row"><button disabled={busy} onClick={()=>save()}>세트 저장</button><button disabled={busy} onClick={()=>save(true)}>복사본 저장</button><button className="qm-primary" disabled={busy||!draft.questions.length} onClick={create}>이 구성으로 방 만들기</button><button disabled={busy||!saved.some(s=>s.id===draft.id)} onClick={async()=>{if(window.prompt('저장된 세트를 삭제하려면 “세트 삭제”를 입력하세요.')!=='세트 삭제')return;try{await remove(ref(adminRealtime,`quizSets/${user.uid}/${draft.id}`));setMessage('저장된 세트를 삭제했습니다. 현재 초안은 남아 있습니다.');}catch(e){setMessage(e.message);}}}>저장 세트 삭제</button></div></div>
+    </div></div>
+    {advanced.dialog}
+    {preview&&<div className="qm-overlay"><section className="qm-panel qm-preview"><button onClick={()=>setPreview(null)}>닫기</button><h3>학생 화면 미리보기</h3><MathText text={preview.q.question}/><AnswerInput key={preview.q.id} question={preview.public} preview onSubmit={a=>{const r=grade(preview.q,a,0);setPreviewResult(`${r.correct?'정답':'정답이 아닙니다'} · ${r.points}점 (속도 최대 기준)`);}}/>{previewResult&&<p>{previewResult}</p>}</section></div>}
+  </section>;
+}
