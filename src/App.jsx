@@ -30,7 +30,7 @@ import QuizHost, { QuizStudent } from "./quiz/Live";
 import { isMultipleChoiceQuestion } from "./utils/questionExcel";
 import "./App.css";
 
-const VERSION = "v0.12.2";
+const VERSION = "v0.13.0";
 const LEGACY_CATEGORY = "기존 문제";
 const CHOICE_LABELS = ["①", "②", "③", "④"];
 const DELETE_BATCH_SIZE = 400;

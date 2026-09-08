@@ -6723,3 +6723,6 @@ body {
 .advanced-ai-actions button {font:inherit;min-height:44px;padding:10px 16px;border:1px solid #d3c5e2;border-radius:10px;cursor:pointer;}
 .advanced-ai-note {font-size:13px;line-height:1.65;color:#71627f;overflow-wrap:anywhere;}
 .ai-provider-card[aria-pressed="true"] {border-color:#9673c2;box-shadow:inset 0 0 0 1px #9673c2;background:#f1eafb;}
+
+/* Indexed radicals share the same layout in teacher and student views. */
+.math-text-flow .math-root-index {align-self:flex-start;font-size:.55em;line-height:1;margin:.02em -.18em 0 0;position:relative;z-index:1;}

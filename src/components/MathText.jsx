@@ -90,36 +90,20 @@ function renderSegment(source, keyPrefix = "m") {
     }
     const group=text.slice(index).match(/^\\(?:text|mathrm|mathbf|mathit)\{/);
     if(group){const open=index+group[0].length-1;const end=findClosing(text,open,'{','}');if(end>=0){flush();nodes.push(<span key={`${keyPrefix}-g-${key++}`}>{renderSegment(text.slice(open+1,end),`${keyPrefix}-g${key}`)}</span>);index=end+1;continue;}}
-    let rootOpenIndex = -1;
-    let rootOpenChar = "";
-    let rootCloseChar = "";
-    let rootPrefixLength = 0;
-
-    if (text.startsWith("sqrt(", index)) {
-      rootOpenIndex = index + 4;
-      rootOpenChar = "(";
-      rootCloseChar = ")";
-      rootPrefixLength = 5;
-    } else if (text.startsWith("sqrt{", index)) {
-      rootOpenIndex = index + 4;
-      rootOpenChar = "{";
-      rootCloseChar = "}";
-      rootPrefixLength = 5;
-    } else if (text.startsWith("\\sqrt{", index)) {
-      rootOpenIndex = index + 5;
-      rootOpenChar = "{";
-      rootCloseChar = "}";
-      rootPrefixLength = 6;
-    }
-
-    if (rootOpenIndex >= 0) {
+    // Accept bank notation and AI LaTeX, including spaces and indexed roots.
+    const root = text.slice(index).match(/^(?:\\sqrt|sqrt)\s*(?:\[([^\]]+)\]\s*)?([({])/);
+    if (root) {
+      const rootOpenIndex = index + root[0].length - 1;
+      const rootOpenChar = root[2];
+      const rootCloseChar = rootOpenChar === "(" ? ")" : "}";
       const closeIndex = findClosing(text, rootOpenIndex, rootOpenChar, rootCloseChar);
       if (closeIndex >= 0) {
         flush();
         const inner = text.slice(rootOpenIndex + 1, closeIndex);
         nodes.push(
           <span className="math-root" key={`${keyPrefix}-r-${key++}`}>
-            <span className="math-root-symbol" aria-hidden="true">√</span>
+            {root[1] && <sup className="math-root-index">{renderSegment(root[1], `${keyPrefix}-ri${key}`)}</sup>}
+            <span className="math-root-symbol">√</span>
             <span className="math-radicand">{renderSegment(inner, `${keyPrefix}-r${key}`)}</span>
           </span>
         );
@@ -127,8 +111,8 @@ function renderSegment(source, keyPrefix = "m") {
         continue;
       }
       // 괄호가 닫히지 않은 잘못된 sqrt는 원문 그대로 보여준다.
-      buffer += text.slice(index, index + rootPrefixLength);
-      index += rootPrefixLength;
+      buffer += root[0];
+      index += root[0].length;
       continue;
     }
 

@@ -19,6 +19,7 @@ import {
 } from "../realtime";
 import studentLobbyBg from "../assets/game/student-lobby.webp";
 import battleArenaBg from "../assets/game/battle-arena.webp";
+import MathText from "./MathText";
 
 const SESSION_KEY = "math-team-battle-student-session";
 const TEAM_IDS = ["A", "B", "C", "D"];
@@ -83,34 +84,6 @@ function useNow(active) {
   }, [active]);
 
   return now;
-}
-
-function MathText({ text = "" }) {
-  const regex = /([A-Za-z0-9)\]])([\^_])(\{[^}]+\}|-?\d+|[A-Za-z])/g;
-  const result = [];
-  let lastIndex = 0;
-  let match;
-  let key = 0;
-
-  while ((match = regex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      result.push(<span key={key++}>{text.slice(lastIndex, match.index)}</span>);
-    }
-
-    let value = match[3];
-    if (value.startsWith("{") && value.endsWith("}")) value = value.slice(1, -1);
-
-    result.push(
-      <span key={key++}>
-        {match[1]}
-        {match[2] === "^" ? <sup>{value}</sup> : <sub>{value}</sub>}
-      </span>
-    );
-    lastIndex = regex.lastIndex;
-  }
-
-  if (lastIndex < text.length) result.push(<span key={key}>{text.slice(lastIndex)}</span>);
-  return <span className="math-text-flow">{result}</span>;
 }
 
 export default function StudentLobby({ initialRoomCode = "", version }) {
