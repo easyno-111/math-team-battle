@@ -1,3 +1,4 @@
+const quality=require('./question-quality.json');
 const string={type:'string'}, integer={type:'integer'}, number={type:'number'};
 const array=(items,minItems=1,maxItems=20)=>({type:'array',items,minItems,maxItems});
 const object=properties=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false});
@@ -18,7 +19,11 @@ const schemas={
  review:object({reviews:array(object({index:integer,valid:{type:'boolean'},note:string}))}),
  quiz:object({questions:array({anyOf:types.map(type=>object({...common,type:{type:'string',enum:[type]},...quizVariants[type]}))},0),note:string})
 };
-schemas.bankWeb=schemas.bank;
+const sourceIndex={type:'integer',minimum:1,maximum:8};
+schemas.bankWeb=object({questions:array(object({...bank,sourceIndex}),0),note:string});
+schemas.variantWeb=object({variants:array(object({...bank,parentIndex:{type:'integer',minimum:1,maximum:10},sourceIndex}),0),note:string});
+schemas.quizWeb=object({questions:array({anyOf:types.map(type=>object({...common,type:{type:'string',enum:[type]},...quizVariants[type],sourceIndex}))},0),note:string});
+const webKinds=new Set(['bankWeb','quizWeb','variantWeb']);
 function assertShape(value,schema){
  if(schema.anyOf){if(!schema.anyOf.some(s=>{try{assertShape(value,s);return true;}catch{return false;}}))throw Error('AI 문제 유형 형식이 잘못되었습니다.');return;}
  if(schema.type==='object'){
@@ -56,7 +61,15 @@ async function verifyPassword({fetchImpl,apiKey,email,password,uid}){
  if(!response.ok||result.localId!==uid||!result.idToken)throw Error('로그인 비밀번호를 확인해주세요.');
  return result.idToken;
 }
-function makeBody(kind,prompt,model){return {model,store:false,max_output_tokens:16000,instructions:'교사용 퀴즈 초안을 한국어로 만드세요. 정답이 유일한지 직접 풀어 확인하고 짧은 해설을 쓰세요. 모든 수식은 $...$로 감싼 LaTeX를 사용하세요. 분수는 \\frac{a}{b}, 루트는 \\sqrt{x}, 제곱은 x^{2}. HTML, 매크로, 배열 환경은 사용하지 마세요. 수식은 JSON 문자열 안에서 역슬래시를 올바르게 이스케이프하세요. 자료가 부족하면 사실이나 출처를 지어내지 마세요.',input:prompt,text:{format:{type:'json_schema',name:`quiz_${kind}`,strict:true,schema:schemas[kind]}}};}
+function makeBody(kind,prompt,model){return {model,store:false,max_output_tokens:16000,instructions:'교사용 퀴즈 초안을 한국어로 만드세요. 정답이 유일한지 직접 풀어 확인하고 짧은 해설을 쓰세요. 모든 수식은 $...$로 감싼 LaTeX를 사용하세요. 분수는 \\frac{a}{b}, 루트는 \\sqrt{x}, 제곱은 x^{2}. HTML, 매크로, 배열 환경은 사용하지 마세요. 수식은 JSON 문자열 안에서 역슬래시를 올바르게 이스케이프하세요. 자료가 부족하면 사실이나 출처를 지어내지 마세요.'+(webKinds.has(kind)?'\n'+quality.nonsense.join('\n'):'')+(kind==='review'?'\n'+quality.review.join('\n'):''),input:prompt,text:{format:{type:'json_schema',name:`quiz_${kind}`,strict:true,schema:schemas[kind]}}};}
+function searchPrompt(prompt){return quality.search.join('\n')+'\n[교사의 출제 조건]\n'+prompt;}
+function filterGrounded(result,sources,kind){
+ const key=kind==='variantWeb'?'variants':'questions';
+ const rows=result[key];
+ const valid=rows.filter(q=>Number.isInteger(q.sourceIndex)&&q.sourceIndex>=1&&q.sourceIndex<=sources.length&&q.explanation.trim().length>=8);
+ const note=[result.note,valid.length<rows.length?`출처 번호나 해설이 불명확한 ${rows.length-valid.length}문제는 제외했습니다.`:''].filter(Boolean).join(' ');
+ return {...result,[key]:valid,note};
+}
 function parseResponse(data,kind){
  if(data.status!=='completed')throw Error('AI 응답이 끝까지 생성되지 않았습니다. 문제 수를 줄여 다시 시도하세요.');
  const content=(data.output||[]).flatMap(item=>item.content||[]);
@@ -71,4 +84,4 @@ function parseSearch(data){
  if(data.status!=='completed'||!text||!sources.length)throw Error('검색 출처를 확인하지 못했습니다. 넌센스 문제를 새로 지어내지 않고 생성을 중단했습니다.');
  return {text:text.slice(0,18000),sources:[...new Map(sources.map(s=>[s.uri,s])).values()].slice(0,8)};
 }
-module.exports={schemas,validateRequest,reserve,verifyPassword,makeBody,parseResponse,parseSearch};
+module.exports={schemas,validateRequest,reserve,verifyPassword,makeBody,parseResponse,parseSearch,webKinds,searchPrompt,filterGrounded};

@@ -73,15 +73,15 @@ export function grade(q, answer, elapsedMs) {
 export function settleRound(room, q, submissions) {
   const scores={...(room.scores || {})},results={};
   for (const [uid,person] of Object.entries(room.players || {})) {
-    const row=submissions?.[uid]; let answer=null,result={correct:false,accuracy:0,points:0};
+    const row=submissions?.[uid]; let answer=null,elapsedMs=null,result={correct:false,accuracy:0,points:0};
     const time=Number(row?.submittedAt);
     if (row && row.roundId===room.roundId && Number.isFinite(time) && time>=room.startAt && time<=room.endAt) {
-      try {answer=JSON.parse(row.answer);result=grade(q,answer,time-room.startAt);} catch { /* Invalid answers earn zero. */ }
+      try {answer=JSON.parse(row.answer);result=grade(q,answer,time-room.startAt);if(answer!==null)elapsedMs=time-room.startAt;} catch { /* Invalid answers earn zero. */ }
     }
     const previous=scores[uid] || {total:0,correct:0,streak:0,maxStreak:0};
     const streak=result.correct ? Number(previous.streak || 0)+1 : 0;
     scores[uid]={total:Number(previous.total || 0)+result.points,correct:Number(previous.correct || 0)+(result.correct?1:0),streak,maxStreak:Math.max(Number(previous.maxStreak || 0),streak)};
-    results[uid]={...result,answer,name:person.name,submitted:answer!==null,streak};
+    results[uid]={...result,answer,name:person.name,submitted:answer!==null,streak,elapsedMs,roundId:room.roundId};
   }
   const before=leaderboard(room.players,room.scores),after=leaderboard(room.players,scores);
   for(const row of after){

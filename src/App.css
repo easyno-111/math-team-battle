@@ -263,31 +263,6 @@ footer {
   background: #fbfafc;
 }
 
-.pastel-blob {
-  position: fixed;
-  z-index: 0;
-  border-radius: 999px;
-  filter: blur(1px);
-  pointer-events: none;
-  opacity: 0.6;
-}
-
-.pastel-blob-one {
-  top: -120px;
-  right: -100px;
-  width: 360px;
-  height: 360px;
-  background: #f1ecff;
-}
-
-.pastel-blob-two {
-  bottom: -150px;
-  left: -130px;
-  width: 390px;
-  height: 390px;
-  background: #e9f8f0;
-}
-
 .admin-header,
 .dashboard-grid,
 .bulk-import-panel,
@@ -6726,3 +6701,12 @@ body {
 
 /* Indexed radicals share the same layout in teacher and student views. */
 .math-text-flow .math-root-index {align-self:flex-start;font-size:.55em;line-height:1;margin:.02em -.18em 0 0;position:relative;z-index:1;}
+
+/* Send a selected batch to the current quiz draft. */
+.question-bulk-actions .bulk-quiz-button { appearance:none;display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:8px 13px;border:1px solid #839f75;border-radius:10px;background:#eaf2df;color:#45613d;font:inherit;font-size:12px;font-weight:800;cursor:pointer; }
+.question-bulk-actions .bulk-quiz-button:hover:not(:disabled) { background:#dceacb; }
+.question-bulk-actions .bulk-quiz-button:disabled { opacity:.5;cursor:default; }
+.question-bulk-actions .bulk-quiz-button:focus-visible { outline:3px solid #afba84;outline-offset:2px; }
+
+.ai-source-reference { padding: 9px 12px; margin: 8px 0; border-radius: 8px; background: #f0f5ed; font-size: 12px; overflow-wrap: anywhere; }
+.ai-source-reference a { color: #42664f; text-underline-offset: 3px; }

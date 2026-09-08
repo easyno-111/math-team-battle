@@ -3,6 +3,7 @@ import { useAdvancedAI } from '../utils/useAdvancedAI';
 import { useMemo, useState } from "react";
 import { GoogleGenAI } from "@google/genai";
 import MathText from "./MathText";
+import { applyAiReviews, groundedSchema, isNonsenseRequest, nonsenseGuide, referenceBlock, reviewGuide, safeSources, searchNonsense, verifyNonsenseDrafts, withAiTimeout } from '../utils/aiQuestionPolicy';
 import { checkAndRecordAiRequest, isClientAiRateLimitError } from "../utils/aiSafety";
 import {
   collection,
@@ -133,22 +134,8 @@ function validateQuestion(item) {
   return "";
 }
 
-function extractGroundingSources(response) {
-  const chunks = response?.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-  const seen = new Set();
-  const result = [];
-  chunks.forEach((chunk) => {
-    const uri = String(chunk?.web?.uri || "").trim();
-    const title = String(chunk?.web?.title || "").trim();
-    if (!uri || seen.has(uri)) return;
-    seen.add(uri);
-    result.push({ uri, title });
-  });
-  return result.slice(0, 8);
-}
-
 function getErrorMessage(error) {
-  if (isClientAiRateLimitError(error)) return error.message;
+  if (isClientAiRateLimitError(error) || /넌센스|후보|AI 응답|생성된 문제/.test(error.message || "")) return error.message;
   const message = String(error?.message || "");
   if (/API key|key not valid|invalid.*key/i.test(message)) {
     return "API 키가 올바르지 않거나 사용할 수 없습니다. AI Studio의 키를 확인해주세요.";
@@ -231,6 +218,8 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
   const [errorMessage, setErrorMessage] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [groundingSources, setGroundingSources] = useState([]);
+
+  const nonsense = isNonsenseRequest({mode:quizMode,prompt:extraInstructions,topic:[category,unit].join(' ')});
 
   const selectedCount = useMemo(
     () => generated.filter((item) => item.selected && !item.validationError).length,
@@ -369,7 +358,7 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
     return `당신은 교실용 4지선다 퀴즈 출제 전문가입니다.\n\n` +
       `퀴즈 성격: ${modeMeta.label}\n분야/과목: ${promptCategory}\n주제/단원: ${promptUnit}\n난이도: ${difficulty}\n문제 수: ${desiredCount}\n` +
       `문제 구성: ${selectedTypes.length ? selectedTypes.join(", ") : "골고루"}\n\n` +
-      `${directMode ? "사용자의 직접 명령을 중심으로 문제 내용을 구성하세요." : modeGuide}\n\n` +
+      `${nonsense ? nonsenseGuide : modeGuide}\n${directMode ? "사용자의 직접 명령을 중심으로 문제 내용을 구성하되 위 품질 기준을 유지하세요." : ""}\n\n` +
       `사용자 추가 요청: ${extraInstructions.trim() || "없음"}\n추가 요청은 내용과 표현에 우선 적용하되, 4지선다 형식·문항 수·저장 분류는 설정을 유지하세요.\n` +
       `다음 공통 규칙을 반드시 지키세요.\n` +
       `1. 각 문제는 보기 4개인 4지선다형입니다.\n` +
@@ -384,17 +373,11 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
       (avoidDuplicates && sameTopicQuestions
         ? `10. 아래 기존 문제들과 숫자나 표현만 조금 바꾼 수준의 중복 문제는 피하세요.\n[기존 문제]\n${sameTopicQuestions}\n`
         : "") +
-      (quizMode === "nonsense" && webReference
+      (nonsense && webReference
         ? `\n[Google 검색으로 확인한 넌센스 후보 자료]\n${webReference}\n\n중요: 위 검색 자료 안에서 확인되는 문제·정답만 사용하세요. 원문을 길게 복사하지 말고 교실용으로 자연스럽게 다듬되, 핵심 말장난과 정답을 새로 발명하거나 바꾸지 마세요. 자료에 없는 새 넌센스 문제는 만들지 마세요.\n`
         : "") +
-      `\n요청한 ${desiredCount}문제를 정확히 생성하세요.`;
+      (nonsense ? `\n최대 ${desiredCount}문제를 반환하세요. 검증된 후보가 부족하면 수를 줄이고 note에 이유를 쓰세요.` : `\n요청한 ${desiredCount}문제를 정확히 생성하세요.`);
   };
-
-  const buildNonsenseSearchPrompt = (desiredCount) => `Google 검색을 사용해 한국어 넌센스 퀴즈·아재개그·말장난 수수께끼 자료를 찾아주세요.\n` +
-    `목표는 '${unit}' 주제에 활용할 교실용 문제 ${desiredCount}개를 만들 수 있도록 신뢰할 만한 기존 후보를 수집하는 것입니다.\n` +
-    `여러 검색 결과를 확인하고, 실제 웹에서 문제와 정답이 확인되는 후보만 간단히 '문제 | 정답 | 왜 그런지' 형식으로 정리하세요.\n` +
-    `억지로 새 문제를 창작하지 마세요. 정답이 여러 개로 해석되거나 출처마다 정답이 다른 문제, 성인·혐오·정치·비하 소재는 제외하세요.\n` +
-    `최소 ${Math.max(desiredCount * 2, 12)}개 정도의 후보를 찾아 중복을 제거하세요. 원문 페이지를 길게 복사하지 말고 핵심만 짧게 정리하세요.`;
 
   const handleGenerate = async () => {
     if (provider==='gemini' && !apiKey.trim()) {
@@ -410,7 +393,7 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
       setErrorMessage("생성할 주제/단원을 입력해주세요.");
       return;
     }
-    const safeCount = Math.max(1, Math.min(MAX_GENERATE_COUNT, Number(count) || 1));
+    const safeCount = Math.max(1, Math.min(MAX_GENERATE_COUNT, Math.floor(Number(count)) || 1));
     setCount(safeCount);
 
     try {
@@ -421,54 +404,33 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
       const ai = provider==='gemini'?getClient():null;
       let webReference = "";
 
-      if (quizMode === "nonsense" && provider==='gemini') {
-        notify("Google 검색에서 실제 넌센스 문제를 찾고 있어요...");
-        let searchResponse;
-        try {
-          searchResponse = await ai.models.generateContent({
-            model,
-            contents: buildNonsenseSearchPrompt(safeCount),
-            config: {
-              tools: [{ googleSearch: {} }],
-              temperature: 0.15,
-            },
-          });
-        } catch (searchError) {
-          if (model === "gemini-2.5-flash-lite") throw searchError;
-          notify("현재 모델의 검색 연결이 맞지 않아 검색 지원 Flash-Lite로 한 번 더 확인하고 있어요...");
-          searchResponse = await ai.models.generateContent({
-            model: "gemini-2.5-flash-lite",
-            contents: buildNonsenseSearchPrompt(safeCount),
-            config: {
-              tools: [{ googleSearch: {} }],
-              temperature: 0.15,
-            },
-          });
-        }
-        webReference = String(searchResponse.text || "").trim();
-        const sources = extractGroundingSources(searchResponse);
+      let sources = [];
+      setGroundingSources([]);
+      if (nonsense && provider==='gemini') {
+        notify('웹에서 문제·정답과 말장난의 근거를 확인하고 있어요…');
+        const reference = await searchNonsense(ai, model, buildPrompt(safeCount), safeCount);
+        sources = reference.sources;
+        webReference = referenceBlock(reference);
         setGroundingSources(sources);
-        if (!webReference) throw new Error("Google search grounding returned no reference");
-      } else {
-        setGroundingSources([]);
       }
 
-      const response = provider==='openai'?null:await ai.models.generateContent({
+      const response = provider==='openai'?null:await withAiTimeout(ai.models.generateContent({
         model,
         contents: buildPrompt(safeCount, webReference),
         config: {
           responseMimeType: "application/json",
-          responseSchema: QUESTION_SCHEMA,
-          temperature: quizMode === "nonsense" ? 0.25 : 0.7,
+          responseSchema: nonsense ? groundedSchema(QUESTION_SCHEMA) : QUESTION_SCHEMA,
+          temperature: nonsense ? 0.2 : 0.55,
         },
-      });
+      }));
 
-      const parsed = provider==='openai'?await advanced.run({kind:quizMode==='nonsense'?'bankWeb':'bank',prompt:buildPrompt(safeCount)}):JSON.parse(response.text || '{}');
-      if(provider==='openai')setGroundingSources(parsed._sources || []);
+      let parsed = provider==='openai'?await advanced.run({kind:nonsense?'bankWeb':'bank',prompt:buildPrompt(safeCount)}):JSON.parse(response.text || '{}');
+      if(provider==='openai'){sources=safeSources(parsed._sources || []);setGroundingSources(sources);}
+      if(nonsense)parsed=verifyNonsenseDrafts(parsed,sources);
       const rows = Array.isArray(parsed.questions) ? parsed.questions.slice(0, safeCount) : [];
-      if (!rows.length) throw new Error("No questions generated");
+      if (!rows.length) throw new Error(parsed.note || "생성된 문제가 없습니다. 조건을 바꿔 다시 시도해주세요.");
 
-      const localQuestions = rows.map((item, index) => ({...createLocalQuestion(item, index, questions),aiProvider:provider,aiModel:parsed._aiModel || model,searchGrounded:quizMode==='nonsense'}));
+      const localQuestions = rows.map((item, index) => ({...createLocalQuestion(item, index, questions),aiProvider:provider,aiModel:parsed._aiModel || model,searchGrounded:nonsense,sourceReference:nonsense?sources[item.sourceIndex-1]:null}));
 
       // 생성 결과 내부 중복도 함께 감지한다.
       localQuestions.forEach((item, index) => {
@@ -483,7 +445,7 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
       });
 
       setGenerated(localQuestions);
-      notify(`AI가 ${localQuestions.length}개 문제를 생성했습니다. 저장 전에 정답과 해설을 확인해주세요.`);
+      notify(`요청 ${safeCount}문제 중 ${localQuestions.length}문제를 준비했습니다. ${parsed.note || "저장 전에 정답과 해설을 확인해주세요."}`);
     } catch (error) {
       console.error("Gemini 문제 생성 오류:", error);
       setErrorMessage(provider==='openai'?error.message:getErrorMessage(error));
@@ -501,7 +463,7 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
   const setAllSelected = (selected) => {
     setGenerated((current) => current.map((item) => ({
       ...item,
-      selected: selected && !item.validationError && item.duplicateScore < 0.82,
+      selected: selected && !item.validationError && item.duplicateScore < 0.82 && item.review?.valid !== false,
     })));
   };
 
@@ -514,7 +476,7 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
   const updateGenerated = (id, field, value) => {
     setGenerated((current) => current.map((item) => {
       if (item.id !== id) return item;
-      const next = { ...item, [field]: value };
+      const next = { ...item, [field]: value, review: null };
       next.validationError = validateQuestion(next);
       return next;
     }));
@@ -525,7 +487,7 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
       if (item.id !== id) return item;
       const choices = [...item.choices];
       choices[choiceIndex] = value;
-      const next = { ...item, choices };
+      const next = { ...item, choices, review: null };
       next.validationError = validateQuestion(next);
       return next;
     }));
@@ -550,20 +512,11 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
         correctOption: item.correctOption,
         explanation: item.explanation,
       }));
-      const reviewPrompt = `다음은 '${modeMeta.label}' 형식의 '${category} / ${unit}' 4지선다 문제입니다. 각 문제를 독립적으로 검토하고 정답번호가 맞는지, 정답이 하나뿐인지, 보기 중복이나 사실·계산·논리 오류가 없는지 검사하세요. 교과 학습이면 계산과 개념을 직접 확인하고, 상식이면 사실의 명확성을, 넌센스면 정답의 납득 가능성과 중의성을 확인하세요. 정상이라면 valid=true와 짧은 확인 문구를, 오류 가능성이 있으면 valid=false와 구체적인 이유를 작성하세요.\n\n${JSON.stringify(payload)}`;
+      const reviewPrompt = `${reviewGuide}\n다음은 '${modeMeta.label}' 형식의 '${category} / ${unit}' 4지선다 문제입니다. 각 문제를 독립적으로 검토하고 정답번호가 맞는지, 정답이 하나뿐인지, 보기 중복이나 사실·계산·논리 오류가 없는지 검사하세요. 교과 학습이면 계산과 개념을 직접 확인하고, 상식이면 사실의 명확성을, 넌센스면 정답의 납득 가능성과 중의성을 확인하세요. 정상이라면 valid=true와 짧은 확인 문구를, 오류 가능성이 있으면 valid=false와 구체적인 이유를 작성하세요.\n\n${JSON.stringify(payload)}`;
       const parsed = provider==='openai' ? await advanced.run({kind:'review',prompt:reviewPrompt}) : JSON.parse((await ai.models.generateContent({model,contents:reviewPrompt,config:{responseMimeType:'application/json',responseSchema:REVIEW_SCHEMA,temperature:0.1}})).text || '{}');
       const reviews = Array.isArray(parsed.reviews) ? parsed.reviews : [];
-      const reviewMap = new Map(reviews.map((review) => [Number(review.index), review]));
-      setGenerated((current) => {
-        let selectedIndex = 0;
-        return current.map((item) => {
-          if (!item.selected || item.validationError) return item;
-          selectedIndex += 1;
-          const review = reviewMap.get(selectedIndex);
-          return review ? { ...item, review } : item;
-        });
-      });
-      notify("AI 2차 검수를 완료했습니다. '확인 필요' 문제는 교사가 직접 다시 확인해주세요.");
+      setGenerated(current => applyAiReviews(current, targets, reviews));
+      notify("AI 검수를 마쳤습니다. '확인 필요' 또는 검수가 누락된 문제는 선택에서 제외했습니다. 수정하면 이전 검수 표시는 초기화됩니다.");
     } catch (error) {
       console.error("Gemini 문제 검수 오류:", error);
       setErrorMessage(provider==='openai'?error.message:getErrorMessage(error));
@@ -810,11 +763,11 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
               </div>
             </div>
 
-            {quizMode === "nonsense" && (
+            {nonsense && (
               <div className="ai-web-grounding-note">
                 <div>
-                  <strong>Google 검색 기반 넌센스</strong>
-                  <span>AI가 임의로 말장난을 만들지 않고, 웹에서 실제 문제·정답을 먼저 확인한 뒤 4지선다로 재구성합니다.</span>
+                  <strong>{provider==='openai'?'OpenAI 웹 검색':'Google 검색'} 기반 넌센스</strong>
+                  <span>문제·정답·말장난의 연결을 확인한 후보로 구성합니다. 근거가 부족하면 요청보다 적게 만들 수 있어요.</span>
                 </div>
                 {groundingSources.length > 0 && <b>검색 출처 {groundingSources.length}곳 참고</b>}
               </div>
@@ -865,7 +818,7 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
               onClick={handleGenerate}
               disabled={generating || reviewing || (provider==='gemini' && !apiKey.trim())}
             >
-              {generating ? "AI가 문제를 만들고 있어요..." : `${Math.min(MAX_GENERATE_COUNT, Number(count) || 1)}문제 생성하기`}
+              {generating ? "AI가 문제를 만들고 있어요..." : `${Math.min(MAX_GENERATE_COUNT, Math.floor(Number(count)) || 1)}문제 생성하기`}
             </button>
           </section>
         </div>
@@ -995,6 +948,7 @@ function AIQuestionGenerator({ db, user, questions, questionUnits, questionCateg
                         {item.duplicateQuestion && <small>비슷한 문제: <MathText text={item.duplicateQuestion} /></small>}
                       </div>
                     )}
+                    {item.sourceReference && <p className="ai-source-reference"><a href={item.sourceReference.uri} target="_blank" rel="noopener noreferrer">문제 참고 출처 · {item.sourceReference.title}</a></p>}
                     {item.review && (
                       <div className={`ai-review-note ${item.review.valid ? "ok" : "warn"}`}>
                         <strong>{item.review.valid ? "AI 2차 검수" : "확인 필요"}</strong>

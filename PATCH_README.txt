@@ -1,75 +1,75 @@
-v0.13.0 패치 — 학생 수식 표시 수정 + 퀴즈 모드 칠판 테마
+v0.15.0 — 넌센스 생성 개선 / 빠른 정답 TOP 3 연출
 
-기존 v0.12.2 프로젝트에 덮어쓰는 화면 패치입니다.
+v0.12.2 이후 프로젝트에 적용할 수 있는 누적 패치입니다.
+변경된 코드와 필요한 연결 파일을 함께 포함했습니다. 이전 누락 파일인 QuizDialog.jsx,
+QuizBoard.jsx 및 칠판 이미지도 포함하므로 앞선 패치를 따로 다시 받을 필요는 없습니다.
 
-적용 방법
-1. 실행 중인 개발 서버를 종료하고 기존 프로젝트 폴더를 백업합니다.
-2. 이 ZIP 안의 src 폴더와 파일들을 math-team-battle 폴더에 덮어씁니다.
-   package.json이 있는 위치에 덮어쓰면 됩니다.
-3. 프로젝트 폴더의 터미널에서 실행합니다.
+적용 방법 (Windows 명령 프롬프트)
+1. 기존 math-team-battle 프로젝트를 백업합니다.
+2. ZIP 안의 src, functions, tests, package.json 등을 기존 프로젝트에 덮어씁니다.
+   package.json이 있는 위치가 기준입니다. functions 폴더도 반드시 덮어쓰세요.
+3. 기존 프로젝트 폴더에서 빌드합니다.
 
    npm run build
+
+4. 빌드가 성공하면 OpenAI 문제 생성 함수를 먼저 배포합니다.
+
+   firebase deploy --only functions:generateAdvancedQuestions
+
+5. 함수 배포가 성공하면 화면을 배포합니다.
+
    firebase deploy --only hosting
 
-이번 패치는 새 패키지를 추가하지 않습니다. 기존에 설치를 완료한 프로젝트라면
-npm install을 다시 할 필요가 없습니다. 전체 프로젝트를 새로 설치할 때는 먼저
-npm install을 실행하세요.
-.env나 OpenAI Secret을 다시 설정할 필요가 없습니다.
-Functions와 데이터베이스 규칙 배포도 이번 화면 패치에는 필요하지 않습니다.
-배포한 뒤 교사·학생 브라우저를 새로고침하고 v0.13.0 표시를 확인하세요.
-Windows에서 이전 화면이 보이면 Ctrl+F5로 다시 불러오세요.
+이번 패치 때문에 새 패키지를 설치하거나 기존 API 키·.env 값을 다시 입력할 필요는 없습니다.
+Firebase 데이터베이스 규칙도 이번 패치에서는 바꾸지 않았습니다.
+화면을 새로고침하고 v0.15.0을 확인하세요. 이전 화면이 남으면 Ctrl+F5를 누르세요.
+Hosting만 배포하면 새 퀴즈/유사문제 넌센스 요청을 이전 Functions가 인식하지 못할 수 있습니다.
 
-무엇이 바뀌었나요?
-- 학생 배틀 화면이 혼자 쓰던 구형 수식 표시기를 제거했습니다.
-  문제와 보기 모두 교사·퀴즈 화면과 동일한 수식 표시기를 사용합니다.
-- sqrt(2), sqrt{2}, \sqrt{2}, 공백이 있는 \sqrt (2), \sqrt[3]{8},
-  루트 안의 루트·분수를 표시합니다. 미완성 수식은 원문을 보존합니다.
-- 문제 제작, 교사 진행, 학생 입장·답변, 정답 공개·순위를 칠판 테마로 개선했습니다.
-- 글씨 없는 칠판 배경을 제작해 문제, 입장 화면, 제작 미리보기에 적용했습니다.
-- 객관식은 A/B/C/D 배지와 답 내용을 분리하고 선택 표시를 추가했습니다.
-  OX, 직접 입력, 숫자 바, 순서 카드도 같은 테마로 다듬었습니다.
-- 학생의 내 순위·점수, 남은 시간, 교사의 제출 현황을 분리해 표시합니다.
-- 참가자 명단과 순위 목록은 정해진 높이 안에서 스크롤됩니다.
-- 미리보기와 QR 확대 창은 키보드 포커스를 유지하며 Esc로 닫을 수 있습니다.
-- 휴대폰·태블릿 화면 대응과 동작 줄이기 설정을 지원합니다.
+1. 넌센스 AI 문제
+- 문제은행 AI, 직접 명령, 커스텀 퀴즈 AI, 넌센스 유사문제에 같은 품질 기준을 적용합니다.
+- 직접 명령으로 '넌센스', '말장난', '아재개그' 등을 요청해도 넌센스 경로를 사용합니다.
+- Gemini는 Google 검색, OpenAI는 웹 검색으로 후보와 출처를 먼저 수집합니다.
+- 검색한 후보의 문제·정답·말장난 원리를 유지하도록 지침을 강화했습니다.
+- 없는 단어, 여러 번의 억지 발음 교체, 해설에서만 추가되는 설정, 여러 정답이 가능한 보기는 제외하도록 지시합니다.
+- 해설에 어떤 단서와 발음/뜻이 연결되는지 설명하게 하고, 출처 번호와 해설을 검사합니다.
+- 검색 출처가 없으면 생성하지 않습니다. 품질 기준에 맞는 후보가 적으면 문제은행/유사문제는 적은 수와 이유를 표시합니다.
+- 커스텀 퀴즈에서 요청한 유형·개수를 충족하지 못하면 억지로 맞추지 않고 다시 구성하도록 안내합니다.
+- AI 초안에서 참고 출처 링크를 확인할 수 있습니다. AI의 검색·자체 검토가 정답의 정확성을 보장하는 것은 아니므로 저장 전 정답과 해설을 확인해주세요.
+- 커스텀 모드의 '넌센스 요청 예시'를 누르면 요청 문장과 혼합 구성(객관식 3, 단답형 2)을 채웁니다.
+  이 버튼은 요청 예시만 넣습니다. 실제 생성은 별도의 생성 버튼을 눌러 실행합니다.
+- OpenAI는 검색과 생성을 한 요청 안에서 처리하고, 기존처럼 생성 요청마다 로그인 비밀번호를 확인합니다.
+  품질 검토용 추가 유료 요청이나 자동 재생성 반복은 넣지 않았습니다.
 
-미리보기
-quiz-preview.html을 브라우저에서 열면 별도 설치 없이 새 디자인을 볼 수 있습니다.
-학생 화면 / 교사 문제 화면 / 문제 제작 화면을 선택할 수 있습니다.
-학생 화면에서 문제 유형을 고르고 ‘3초 뒤 답변 시작’을 누르면 직접 풀 수 있습니다.
-‘휴대폰 폭 / 넓게’로 좁은 화면도 비교할 수 있습니다.
-이 파일의 학생·점수는 예시이며 실제 수업 방이나 AI 호출에 연결되지 않습니다.
-실제 서비스 화면은 npm run build로 다시 빌드해 배포해야 합니다.
+2. 정답자 1~3위 이펙트
+- 정답 공개 화면에 '이번 문제 · 빠른 정답 TOP 3'를 표시합니다.
+- 이번 문제를 맞힌 학생 중 답안이 접수된 시간 순서이며, 누적 점수 순위와 구분됩니다.
+- 1위는 금색 왕관과 빛나는 효과, 2·3위는 은색·동색 카드로 등장합니다.
+- 해당 학생 화면에는 본인의 수상 문구와 '나' 표시가 나옵니다.
+- 같은 접수 시각은 공동 순위입니다. 예: 공동 1위 2명 다음은 3위입니다.
+- 오답·부분 점수·미제출·다른 라운드 답안은 빠른 정답상에서 제외합니다.
+- 정답자가 1~2명이면 해당 학생만, 정답자가 없으면 수상 이펙트를 표시하지 않습니다.
+- 약 3.8초 후 움직임이 끝나고 기록은 남습니다. 결과 영역 안에서만 움직이며 전체 화면을 가리지 않습니다.
+- 다음 문제·화면 이동 때 타이머와 효과를 해제합니다. 늦은 재접속에서 끝난 연출을 다시 시작하지 않습니다.
+- OS의 동작 줄이기 설정에서는 움직임 없이 카드만 표시합니다.
+- 최종 TOP 3도 공동 순위 학생을 빠뜨리지 않도록 보완했습니다.
+- 새 정답 접수 시간 정보는 패치 적용 후 채점하는 문제부터 기록됩니다.
 
-확인한 항목
-- 기존 채점·AI 권한·데이터 규칙·배틀·순위 테스트 37개 통과.
-- 실제 React 컴포넌트로 수식, 학생 배틀 문제·보기, 교사·학생 진행 상태,
-  문제 숨김 설정, 제출 완료, 5가지 답 입력 등 32개 검증 통과.
-- 변경 소스 ESLint, JSX 변환, 로컬 import 연결과 CSS 구문 검사 통과.
-- 미리보기 JavaScript 구문 검사 통과.
-- 이 작업 환경은 업로드된 Windows 의존성을 사용하여 Linux용 Rolldown
-  네이티브 모듈이 없습니다. 따라서 여기서 Vite 전체 빌드는 완료하지 못했습니다.
-  실제 브라우저의 레이아웃·실시간 Firebase 수업 연결은 별도 확인이 필요합니다.
+3. 함께 보완한 부분
+- AI 검수에서 '확인 필요'이거나 검수가 누락된 문제는 저장 선택에서 자동 제외합니다.
+- 내용을 고치면 이전 검수 표시를 지웁니다. 검수 중 수정한 문제에 늦은 검수 결과를 덮어씌우지 않습니다.
+- 커스텀 AI 미리보기에 보기·정답·해설을 함께 표시합니다.
+- 중복 보기 등 형식 오류가 있는 AI 초안은 적용하지 않습니다.
+- AI 생성 전에 40문제 한도와 유형별 정수 개수를 확인해 불필요한 생성을 줄입니다.
+- 초안을 만든 뒤 세트나 편집 대상이 바뀌면 이전 후보를 잘못 덮어쓰지 않습니다.
 
-배경 파일
-src/assets/game/quiz-chalkboard.png
-1536 × 1024 PNG, 약 2.6 MiB. 앱에 포함된 정적 이미지입니다.
-여러 문제에서 같은 파일을 재사용하며 실행 중 이미지 생성 요청을 보내지 않습니다.
-색상·크기·문제 영역 스타일은 src/quiz/quiz.css에서 수정할 수 있습니다.
-
-배경 제작 기록
-제작: 내장 Imagegen 도구
-사용한 최종 프롬프트:
-Create a production background image asset for a Korean classroom math quiz web app.
-This is only a background texture, NOT a screenshot, UI layout or mockup.
-Landscape 1536x1024. A beautiful straight-on deep forest green school chalkboard,
-matte slate surface, delicate natural chalk grain and faint softly erased chalk
-clouds, calm premium classroom atmosphere. The center 85% must be blank dark
-low-contrast green with ample empty space for white mathematical text overlaid
-later in code. Extremely subtle chalk arcs, one tiny hand-drawn triangle and a few
-scattered chalk dust specks only at the far outer corners. Soft diffuse light,
-subtle vignette, tactile but quiet, cohesive muted emerald palette. Absolutely
-NO text, NO letters, NO numbers, NO equations, NO logos, NO watermark, NO UI,
-NO people, NO perspective, NO wooden frame, NO border. Fill the entire canvas with
-the chalkboard texture. It should stay readable and attractive when used
-responsively behind quiz questions.
+검증 및 미리보기
+- 기능·채점·AI 응답·비밀번호 확인 테스트 70개 통과.
+- 실제 React 컴포넌트의 수식·진행·입력 검사 32개, 기존 문제은행/명단 UI 검사 12개 통과.
+- 신규 AI 경로, 오류 초안 적용 방지, 연출 종료·해제 검사 7개 통과.
+- ESLint, JSX 구문, 로컬 import/export 및 CSS 자산 연결 검사 통과.
+- 이전 프로젝트에 실제 ZIP을 덮어쓴 뒤 파일·자산 연결을 다시 검사했습니다.
+- 이 작업 환경의 Linux용 Rolldown 모듈 누락으로 Vite 전체 빌드는 완료하지 못했습니다.
+- 실제 Firebase 수업, 브라우저 레이아웃, 유료 AI 실응답 품질은 이 환경에서 검증하지 못했습니다.
+  배포 전 PC에서 빌드하고, 수업 전 넌센스 몇 문제와 테스트 학생으로 확인해주세요.
+- quiz-preview.html을 열면 예시 학생·점수로 TOP 3 연출과 이전 퀴즈 기능을 체험할 수 있습니다.
+  실제 데이터베이스·AI 서비스에 연결되는 미리보기가 아닙니다.

@@ -2,10 +2,10 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {readFileSync}=require('node:fs');
 const vm=require('node:vm');
-const {reserve,parseResponse,parseSearch,makeBody}=require('./policy.cjs');
+const {reserve,parseResponse,parseSearch,makeBody,filterGrounded}=require('./policy.cjs');
 const question={category:'수학',unit:'다항식',difficulty:'보통',question:'$x^{2}$',choices:['1','2','3','4'],correctOption:1,explanation:'계산하면 1'};
 const output=result=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(result)}]}]});
-function harness({wrong=false,disabled=false,otherProject=false}={}){
+function harness({wrong=false,disabled=false,otherProject=false,sourceIndex=1,noSearchSources=false}={}){
  const state={guards:{},calls:[]};
  class HttpsError extends Error{constructor(code,message){super(message);this.code=code;}}
  const env={AI_ADMIN_UIDS:'teacher',AUTH_WEB_API_KEY:'fake-firebase-key',OPENAI_MODEL:'gpt-4.1',OPENAI_API_KEY:'test-only'};
@@ -21,7 +21,11 @@ function harness({wrong=false,disabled=false,otherProject=false}={}){
  vm.runInNewContext(readFileSync(__dirname+'/index.cjs','utf8'),{exports,require:name=>modules[name],Date,AbortSignal,fetch:async(url,options)=>{
   const body=JSON.parse(options.body);state.calls.push({url,body});
   if(url.includes('identitytoolkit'))return {ok:!wrong,json:async()=>wrong?{error:{}}:{localId:'teacher',idToken:'verified-token'}};
-  if(body.tools)return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:'확인된 후보',annotations:[{type:'url_citation',url:'https://example.org/quiz',title:'출처'}]}]}]})};
+  if(body.tools)return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:'확인된 후보',annotations:noSearchSources?[]:[{type:'url_citation',url:'https://example.org/quiz',title:'출처'}]}]}]})};
+  const kind=body.text?.format?.name;
+  if(kind==='quiz_bankWeb')return {ok:true,json:async()=>output({questions:[{...question,explanation:'문제의 단서와 답이 같은 발음으로 연결됩니다.',sourceIndex}],note:''})};
+  if(kind==='quiz_quizWeb')return {ok:true,json:async()=>output({questions:[{...question,type:'choice',duration:30,correctIndex:0,correctOption:undefined,explanation:'문제의 단서와 답이 같은 발음으로 연결됩니다.',sourceIndex}],note:''})};
+  if(kind==='quiz_variantWeb')return {ok:true,json:async()=>output({variants:[{...question,parentIndex:1,explanation:'문제의 단서와 답이 같은 발음으로 연결됩니다.',sourceIndex}],note:''})};
   return {ok:true,json:async()=>output({questions:[question]})};
  }});
  return {...state,handler:exports.generateAdvancedQuestions};
@@ -81,4 +85,20 @@ test('example environment does not use Firebase reserved names',()=>{
  const keys=lines.map(line=>line.split('=')[0]);
  assert.ok(keys.includes('AUTH_WEB_API_KEY'));
  assert.ok(keys.every(key=>!key.startsWith('FIREBASE_')&&!key.startsWith('X_GOOGLE_')&&!key.startsWith('EXT_')));
+});
+
+test('bank, custom quiz and similar nonsense requests all search once after password verification',async()=>{
+ for(const kind of ['bankWeb','quizWeb','variantWeb']){
+  const h=harness(),r=request();r.data.kind=kind;const data=await h.handler(r);
+  assert.equal(h.calls.length,3);assert.ok(h.calls[0].url.includes('identitytoolkit'));
+  assert.equal(h.calls[1].body.tools[0].type,'web_search');
+  assert.ok(h.calls[2].body.input.includes('1. 출처 | https://example.org/quiz'));
+  assert.ok(h.calls[2].body.instructions.includes('발음을 여러 번 바꾸거나'));
+  assert.equal(data.result[kind==='variantWeb'?'variants':'questions'].length,1);
+ }
+});
+test('missing search citations stop before synthesis and invented source indexes are excluded',async()=>{
+ const h=harness({noSearchSources:true}),r=request();r.data.kind='quizWeb';await assert.rejects(h.handler(r),/출처/);assert.equal(h.calls.length,2);
+ const bad=harness({sourceIndex:3}),b=request();b.data.kind='bankWeb';const data=await bad.handler(b);assert.equal(data.result.questions.length,0);assert.match(data.result.note,/제외/);assert.equal(bad.calls.length,3);
+ const filtered=filterGrounded({questions:[{explanation:'그냥',sourceIndex:1}],note:''},[{uri:'https://example.org'}],'bankWeb');assert.equal(filtered.questions.length,0);
 });

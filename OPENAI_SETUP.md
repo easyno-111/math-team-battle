@@ -1,3 +1,5 @@
+> **v0.15.0 업그레이드:** 넌센스 검색·생성 경로가 확장됐습니다. 패치의 `functions` 폴더(특히 `question-quality.json` 포함)를 덮어쓴 후 `firebase deploy --only functions:generateAdvancedQuestions`를 실행하세요. 성공하면 `npm run build` 후 `firebase deploy --only hosting`을 실행합니다. 기존 비밀키와 환경변수는 유지합니다.
+
 # v0.12.2 — OpenAI 고급 생성 연결
 
 이 패치는 연결 기능을 제공합니다. 실제 계정 연결은 아래 초기 설정 후 완료됩니다.

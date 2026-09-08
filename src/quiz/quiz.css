@@ -611,3 +611,261 @@ body:has(.qm-student) { background: #f5f4eb; }
 @media (prefers-reduced-motion: reduce) {
   .qm-root *, .qm-root *::before, .qm-root *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* v0.14.0 · browse, select and compose from the existing question bank. */
+.qm-bank-entry { display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 20px;background:#edf3e6;border:1px solid #cbdcbe;border-radius:14px;margin:18px 0; }
+.qm-bank-entry > div { min-width:0; }
+.qm-bank-entry strong { display:block;font-size:15px; }
+.qm-bank-entry small { display:block;margin-top:4px;font-size:12px; }
+.qm-bank-entry > button { flex:none;border-color:#93b082;background:#fffdf6; }
+.qm-composer { border:1px solid #d9e1cc;border-radius:16px;padding:20px;margin:18px 0 24px;background:#f6f7ef; }
+.qm-composer .qm-section-head { align-items:flex-start; }
+.qm-composer .qm-help-text { margin:7px 0 0;font-size:12px; }
+.qm-recipe-list { display:grid;gap:12px; }
+.qm-root .qm-recipe-row { padding:10px 16px 6px;margin:0;background:#fffef8;border-radius:12px; }
+.qm-recipe-row legend { font-size:12px;font-weight:700;color:#58714d; }
+.qm-recipe-fields { display:grid;grid-template-columns:minmax(105px,1.1fr) minmax(125px,1.5fr) minmax(90px,1fr) 75px 100px;gap:9px; }
+.qm-root .qm-recipe-fields label { font-size:11px;margin:5px 0; }
+.qm-root .qm-recipe-fields input,.qm-root .qm-recipe-fields select { font-size:12px;padding:9px 8px; }
+.qm-recipe-row-footer { display:flex;align-items:center;justify-content:space-between;gap:12px; }
+.qm-recipe-row-footer small { font-size:11px; }
+.qm-recipe-row-footer small.is-shortage { color:#a75934;font-weight:700; }
+.qm-recipe-row-footer button { font-size:11px;min-height:44px;padding:8px 0 8px 12px; }
+.qm-root .qm-add-recipe { display:flex;width:100%;margin-top:14px;border-style:dashed;background:transparent; }
+.qm-composer-options { display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px; }
+.qm-composer-total { display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-top:1px solid #dfe5d4;margin-top:6px;font-size:13px; }
+.qm-composer-total strong { color:#316547; }
+.qm-composer-total small { font-size:10px; }
+.qm-root .qm-compose-button { display:flex;width:100%;justify-content:space-between;min-height:48px; }
+.qm-composer > .qm-message { margin:16px 0 0; }
+.qm-composition-preview { padding:18px;background:#fffef8;border:1px solid #c9d9bb;border-radius:12px;margin-top:18px; }
+.qm-composition-preview h4 { margin:0;font-size:16px; }
+.qm-composition-groups { display:flex;flex-wrap:wrap;gap:7px; }
+.qm-composition-groups > span { font-size:11px;padding:5px 9px;background:#edf2e3;border-radius:7px; }
+.qm-composition-groups b { margin-left:4px;color:#3d6b44; }
+.qm-composition-preview ol { max-height:275px;overflow:auto;overscroll-behavior:contain;padding:0 10px 0 27px;margin:16px 0; }
+.qm-composition-preview li { padding:11px 3px;border-bottom:1px solid #e4e9da;font-size:14px;line-height:1.8; }
+.qm-composition-preview li small { display:block;font-size:10px;color:#75816a; }
+.qm-composition-preview li:last-child { border-bottom:0; }
+
+.qm-bank-dialog[open] { display:flex;flex-direction:column;width:min(1120px,calc(100vw - 32px));height:min(890px,calc(100dvh - 32px));max-height:calc(100dvh - 32px);padding:22px;overflow:auto; }
+.qm-bank-dialog .qm-dialog-heading { flex:none;margin-bottom:14px; }
+.qm-bank-search { flex:none;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:16px;border-bottom:1px solid #dae2ce;padding-bottom:16px;margin-bottom:14px; }
+.qm-bank-search .qm-fields { grid-template-columns:1fr 1fr; }
+.qm-root .qm-bank-search label { margin:0;font-size:11px; }
+.qm-bank-browser { display:grid;grid-template-columns:185px minmax(0,1fr);gap:16px;flex:1;min-height:170px;overflow:hidden; }
+.qm-bank-units { overflow:auto;overscroll-behavior:contain;padding:3px 6px 3px 3px;border-right:1px solid #dce3d2; }
+.qm-root .qm-bank-units button { display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;text-align:left;min-height:46px;margin:0 0 7px;padding:9px 11px;border-color:transparent;background:transparent;font-size:12px; }
+.qm-bank-units button > span { overflow-wrap:anywhere; }
+.qm-bank-units button small { font-size:10px;flex:none; }
+.qm-root .qm-bank-units button[aria-pressed=true] { background:#e6efdb;color:#305d3e;border-color:#b8cda6; }
+.qm-bank-matches { min-width:0;min-height:0;display:flex;flex-direction:column; }
+.qm-bank-list-tools { display:flex;align-items:center;flex-wrap:wrap;gap:9px 14px;flex:none;margin-bottom:10px; }
+.qm-bank-list-tools > strong { font-size:13px;margin-right:auto; }
+.qm-bank-list-tools > strong small { font-size:10px;white-space:nowrap; }
+.qm-root .qm-bank-list-tools .qm-check { font-size:10px;margin:0; }
+.qm-bank-list-tools .qm-check input { height:18px;width:18px; }
+.qm-root .qm-bank-list-tools button { font-size:11px;padding:8px 10px; }
+.qm-bank-list { flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:3px 7px 3px 3px; }
+.qm-bank-question { border:1px solid #dfe5d5;background:#fffef9;border-radius:12px;margin-bottom:10px;padding:14px; }
+.qm-bank-question.is-picked { border-color:#669457;box-shadow:inset 0 0 0 1px #669457;background:#f2f7eb; }
+.qm-bank-question.is-included { background:#eff1e9; }
+.qm-root .qm-bank-question-pick { display:flex;flex-direction:row;align-items:flex-start;gap:12px;cursor:pointer;margin:0; }
+.qm-bank-question-pick > input { flex:none;width:20px;height:20px;margin:4px 0 0; }
+.qm-bank-question-pick > span { min-width:0;flex:1; }
+.qm-bank-question-meta { display:block;font-weight:500;font-size:10px;margin-bottom:7px;line-height:1.7; }
+.qm-bank-question-meta b { display:inline-block;margin-left:6px;padding:1px 6px;border-radius:5px;background:#eaf0df;color:#5c784b;font-size:10px; }
+.qm-bank-question-meta em { font-style:normal;font-size:10px;color:#6a7f62;margin-left:8px; }
+.qm-bank-question-text { display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;font-size:15px;font-weight:600;line-height:1.85;overflow-wrap:anywhere; }
+.qm-bank-question details { padding-left:32px;margin-top:4px; }
+.qm-bank-question summary { font-size:11px;color:#6c805d;font-weight:500;padding-block:10px; }
+.qm-bank-full-question { margin:10px 0 14px;font-size:15px;line-height:1.85;overflow-wrap:anywhere; }
+.qm-bank-detail-choices { display:grid;grid-template-columns:1fr 1fr;gap:7px; }
+.qm-bank-detail-choices > div { display:flex;align-items:center;gap:8px;padding:10px;background:#f1f4e9;border-radius:8px;font-size:13px;min-width:0;overflow-wrap:anywhere; }
+.qm-bank-detail-choices .qm-choice-mark { width:23px;min-width:23px;height:23px;border-radius:6px;font-size:10px;background:#859579; }
+.qm-bank-detail-choices > div.correct { background:#e3eecf; }
+.qm-bank-detail-choices > div.correct .qm-choice-mark { background:#527a45; }
+.qm-bank-detail-choices small { margin-left:auto;font-size:10px;white-space:nowrap;color:#467039; }
+.qm-bank-detail-explanation { font-size:12px;line-height:1.8;color:#6f7d64;margin:12px 0 5px !important;overflow-wrap:anywhere; }
+.qm-bank-pagination { display:flex;align-items:center;justify-content:center;gap:16px;flex:none;margin-top:8px; }
+.qm-bank-pagination span { font-size:11px;color:#6f7d63; }
+.qm-bank-pagination button { font-size:11px; }
+.qm-bank-basket { flex:none;border-top:1px solid #d9e1ce;margin-top:14px;padding-top:12px; }
+.qm-bank-basket > .qm-message { padding:8px 12px;font-size:11px;margin:0 0 9px; }
+.qm-bank-basket-head { display:flex;align-items:center;justify-content:space-between;gap:16px; }
+.qm-bank-basket-head strong { display:block;font-size:15px; }
+.qm-bank-basket-head small { display:block;font-size:10px;margin-top:3px; }
+.qm-bank-basket-head button { font-size:11px; }
+.qm-picked-list { display:flex;flex-wrap:wrap;gap:5px;max-height:62px;overflow:auto;overscroll-behavior:contain;margin:7px 0;padding:2px; }
+.qm-root .qm-picked-list button { min-height:30px;padding:4px 8px;font-size:10px;gap:7px;border-color:#ccd8bd;background:#eef3e3; }
+.qm-picked-list button span { max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.qm-picked-list button b { color:#7d8a6c; }
+.qm-root .qm-bank-import { display:flex;justify-content:space-between;width:100%;margin-top:10px;min-height:48px; }
+
+/* Teacher can open the students behind any response without another database read. */
+.qm-round-breakdown { margin-top:22px; }
+.qm-response-metrics { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px; }
+.qm-root .qm-response-metrics > button,.qm-response-metrics > div { display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;text-align:left;gap:3px;padding:14px 12px;min-width:0;border:1px solid #dce3ce;border-radius:12px;background:#f5f7ec;color:#3b5138; }
+.qm-response-metrics > :first-child { background:#eaf2dd !important; }
+.qm-root .qm-response-metrics > button.active { box-shadow:inset 0 0 0 1px #5c824e;border-color:#5c824e; }
+.qm-response-metrics > :is(button,div) > span { font-size:11px; }
+.qm-response-metrics strong { font-size:26px;line-height:1.25;color:#3f6b3e;font-variant-numeric:tabular-nums; }
+.qm-response-metrics small { font-size:10px;font-weight:400; }
+.qm-response-metrics i { font-style:normal;font-size:10px;margin-top:5px;color:#6e895c; }
+.qm-response-caption { font-size:10px;color:#7c866f;line-height:1.8;margin:9px 0 15px !important; }
+.qm-response-distribution { display:grid;gap:6px;max-height:310px;overflow:auto;overscroll-behavior:contain;padding:3px; }
+.qm-root .qm-response-distribution > button,.qm-response-distribution > div { display:grid;grid-template-columns:25px minmax(0,1fr) minmax(30px,.55fr) 39px 10px;gap:8px;align-items:center;width:100%;text-align:left;min-width:0;padding:11px 9px;min-height:48px;border:1px solid #e2e7d8;border-radius:9px;background:#f5f7ee;color:#354b30;font-size:12px; }
+.qm-response-distribution > div { grid-template-columns:25px minmax(0,1fr) minmax(30px,.55fr) 39px; }
+.qm-root .qm-response-distribution > .correct { background:#e8f0d9;border-color:#cdddbc; }
+.qm-root .qm-response-distribution > .is-selected { border-color:#658852;box-shadow:inset 0 0 0 1px #658852; }
+.qm-response-distribution .qm-choice-mark { width:25px;min-width:25px;height:25px;font-size:11px;border-radius:6px;background:#7e9370; }
+.qm-response-label { font-size:12px;overflow-wrap:anywhere;font-weight:500; }
+.qm-response-label > small { display:inline-block;font-size:9px;background:#d1e1b8;color:#496e33;border-radius:4px;padding:1px 4px;margin-left:6px; }
+.qm-answer-dot { height:9px;width:9px;background:#7a9960;border-radius:50%;margin:auto; }
+.qm-response-bar { height:7px;background:#dfe7d2;border-radius:10px;overflow:hidden; }
+.qm-response-bar > span { display:block;height:100%;background:#88a66b;border-radius:10px; }
+.qm-response-distribution strong { text-align:right;white-space:nowrap;font-size:12px; }
+.qm-response-distribution strong small { display:block;font-size:9px;font-weight:400; }
+.qm-response-more { text-align:right;color:#698459;font-weight:400; }
+.qm-response-inspector { margin-top:15px;border:1px solid #baceaa;border-radius:12px;padding:17px;background:#f6f8ef; }
+.qm-response-inspector .qm-section-head { align-items:flex-start;gap:10px;margin-bottom:10px; }
+.qm-response-inspector .qm-section-head small { font-size:10px; }
+.qm-response-inspector h4 { font-size:14px;line-height:1.7;margin:4px 0 0;overflow-wrap:anywhere; }
+.qm-response-inspector h4 > span:last-child { white-space:nowrap;display:inline-block;margin-left:6px;color:#648350;font-size:11px; }
+.qm-response-inspector .qm-section-head > button { font-size:10px;flex:none;padding-inline:10px; }
+.qm-inspect-pause { font-size:10px;color:#827236;background:#f7f0d6;border-radius:7px;padding:8px 10px; }
+.qm-response-students { max-height:260px;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:2px; }
+.qm-response-students article { display:grid;grid-template-columns:minmax(65px,.7fr) minmax(0,1.3fr) auto;gap:10px;align-items:center;padding:11px 5px;border-bottom:1px solid #dfe6d5; }
+.qm-response-students article:last-child { border-bottom:0; }
+.qm-response-students article > div { min-width:0; }
+.qm-response-students article strong { display:block;font-size:13px;overflow-wrap:anywhere; }
+.qm-response-students article small { display:block;font-size:9px;color:#93633f; }
+.qm-response-students article small.correct { color:#567c44; }
+.qm-response-students article p { margin:0;font-size:12px;line-height:1.8;overflow-wrap:anywhere; }
+.qm-response-students article > b { color:#668152;font-size:11px;white-space:nowrap; }
+.qm-empty-responses { font-size:12px;color:#7c8b6c;padding:18px 0;margin:0 !important; }
+@media(max-width:1100px) {
+  .qm-recipe-fields { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .qm-recipe-fields label:nth-child(2) { grid-column:span 2; }
+}
+@media(max-width:800px) {
+  .qm-bank-dialog[open] { padding:18px;height:calc(100dvh - 24px);max-height:calc(100dvh - 24px); }
+  .qm-bank-search { grid-template-columns:1fr;gap:10px;padding-bottom:12px;margin-bottom:10px; }
+  .qm-bank-browser { grid-template-columns:145px minmax(0,1fr);gap:10px; }
+  .qm-bank-search .qm-fields { gap:10px; }
+  .qm-bank-list-tools { gap:8px; }
+  .qm-bank-list-tools .qm-check { order:3;flex-basis:100%; }
+  .qm-bank-question { padding:12px; }
+  .qm-bank-question details { padding-left:0; }
+  .qm-bank-detail-choices { grid-template-columns:1fr; }
+  .qm-response-metrics strong { font-size:24px; }
+}
+@media(max-width:540px) {
+  .qm-bank-entry { flex-direction:column;align-items:stretch;padding:16px;gap:13px; }
+  .qm-bank-entry strong { font-size:14px; }
+  .qm-bank-entry small { font-size:11px; }
+  .qm-bank-entry > button { justify-content:space-between; }
+  .qm-composer { padding:16px; }
+  .qm-composer .qm-section-head { flex-wrap:wrap;gap:8px; }
+  .qm-composer .qm-help-text { font-size:11px; }
+  .qm-root .qm-recipe-row { padding:10px 12px 4px; }
+  .qm-recipe-fields { grid-template-columns:1fr 1fr;gap:6px 10px; }
+  .qm-recipe-fields label:nth-child(2) { grid-column:auto; }
+  .qm-recipe-fields label:nth-child(3) { grid-column:1 / -1; }
+  .qm-composer-options { grid-template-columns:1fr;gap:0; }
+  .qm-composer-total { flex-direction:column;align-items:flex-start;gap:3px; }
+  .qm-composition-preview { padding:14px; }
+  .qm-bank-dialog[open] { width:calc(100vw - 16px);padding:14px 12px;border-radius:15px; }
+  .qm-bank-dialog .qm-dialog-heading { margin-bottom:10px; }
+  .qm-bank-search { gap:10px; }
+  .qm-bank-browser { display:flex;flex-direction:column;gap:10px;min-height:220px; }
+  .qm-bank-units { flex:none;display:flex;gap:6px;overflow:auto;white-space:nowrap;padding:2px 2px 7px;border:0; }
+  .qm-root .qm-bank-units button { width:auto;flex:none;font-size:11px;margin:0;min-height:44px; }
+  .qm-bank-matches { flex:1; }
+  .qm-bank-list-tools { gap:6px 9px; }
+  .qm-bank-list-tools > strong { font-size:12px; }
+  .qm-bank-question-text { font-size:14px; }
+  .qm-bank-list { padding-right:2px; }
+  .qm-bank-question-pick { gap:9px; }
+  .qm-bank-pagination { margin-top:5px;gap:12px; }
+  .qm-bank-basket { padding-top:10px;margin-top:10px; }
+  .qm-bank-basket-head strong { font-size:14px; }
+  .qm-picked-list { max-height:40px; }
+  .qm-root .qm-bank-import { font-size:13px;min-height:46px; }
+  .qm-root .qm-response-metrics > button,.qm-response-metrics > div { padding:12px 9px;gap:3px; }
+  .qm-response-metrics { gap:7px; }
+  .qm-response-metrics > :is(button,div) > span { font-size:10px; }
+  .qm-response-metrics strong { font-size:23px; }
+  .qm-response-metrics small { font-size:9px; }
+  .qm-response-inspector { padding:13px; }
+  .qm-response-students article { gap:8px;grid-template-columns:minmax(55px,.8fr) minmax(0,1.2fr) auto; }
+}
+
+/* v0.15.0 · one brief celebration inside the result area. */
+.qm-results > .qm-awards { grid-column: 1 / -1; }
+.qm-awards { position: relative; isolation: isolate; overflow: hidden; padding: 24px 28px 15px; border: 1px solid #ded6b8; border-radius: 20px; background: linear-gradient(135deg, #fff9e5, #f4f7ed 62%, #eef4f2); }
+.qm-award-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; position: relative; z-index: 2; margin-bottom: 18px; }
+.qm-award-heading small { display: block; color: #88764b; font-size: 11px; font-weight: 700; letter-spacing: .04em; margin-bottom: 5px; }
+.qm-award-heading h3 { margin: 0; color: #314d3c; font-size: clamp(17px, 2vw, 24px); }
+.qm-personal-award { color: #624819; background: #ffedb6; border: 1px solid #dfc36c; padding: 9px 14px; border-radius: 9px; font-size: 14px; }
+.qm-award-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: end; position: relative; z-index: 2; max-width: 810px; margin: 0 auto; }
+.qm-award-grid[data-count="1"] { grid-template-columns: minmax(0, 320px); justify-content: center; }
+.qm-award-grid[data-count="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 560px; }
+.qm-award-card { --qm-award-delay: 0ms; position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 8px; min-height: 168px; padding: 18px 12px 15px; border-radius: 15px; text-align: center; border: 1px solid #cbd8dd; border-bottom: 5px solid #b8c6cf; background: linear-gradient(155deg, #fdfefe, #e8edf1); color: #455d6e; }
+.qm-award-card.rank-1 { --qm-award-delay: 330ms; background: linear-gradient(150deg, #fffbeb, #f7e3a7); border-color: #dbc16f; border-bottom-color: #b99338; min-height: 193px; color: #886318; }
+.qm-award-card.rank-2 { --qm-award-delay: 160ms; }
+.qm-award-card.rank-3 { background: linear-gradient(155deg, #fff9f1, #edd9c6); border-color: #d6b99c; border-bottom-color: #b68e6c; color: #936342; }
+.qm-award-grid[data-count="3"] .rank-1 { order: 2; }
+.qm-award-grid[data-count="3"] .rank-2 { order: 1; }
+.qm-award-grid[data-count="3"] .rank-3 { order: 3; }
+.qm-award-card.is-mine { outline: 3px solid #3b7a59; outline-offset: 2px; }
+.qm-award-emblem { width: 39px; height: 39px; }
+.qm-award-emblem svg { width: 100%; height: 100%; }
+.qm-award-card.rank-1 .qm-award-emblem { width: 48px; height: 48px; }
+.qm-award-place { font-size: 30px; line-height: 1; }
+.qm-award-place span { font-size: 15px; margin-left: 2px; }
+.qm-award-place small { font-size: 11px; }
+.qm-award-names { width: 100%; max-height: 108px; overflow-y: auto; overscroll-behavior: contain; }
+.qm-award-names strong { display: block; color: #304438; font-size: 19px; line-height: 1.45; overflow-wrap: anywhere; }
+.qm-award-names small { margin-left: 5px; background: #3b7a59; color: #fff; font-size: 10px; padding: 2px 4px; border-radius: 4px; vertical-align: middle; }
+.qm-award-record { font-size: 12px; font-variant-numeric: tabular-nums; }
+.qm-awards .qm-award-caption { margin: 14px 0 0; text-align: center; color: #6e786a; font-size: 10px; }
+.qm-award-sparks { position: absolute; z-index: 3; inset: 0; overflow: hidden; pointer-events: none; }
+.qm-award-sparks i { position: absolute; width: 6px; height: 11px; top: 8%; left: var(--spark-x); background: #d5a74d; border-radius: 2px; animation: qmAwardSpark 2800ms ease-out both; animation-delay: calc(var(--qm-award-seek) + var(--spark-delay)); }
+.qm-award-sparks i:nth-child(3n) { background: #65957b; width: 5px; height: 5px; }
+.qm-award-sparks i:nth-child(3n + 1) { background: #c28c6d; }
+.qm-awards.is-celebrating .qm-award-card { animation: qmAwardLift 850ms cubic-bezier(.19, 1, .32, 1) both; animation-delay: calc(var(--qm-award-seek) + var(--qm-award-delay)); }
+.qm-awards.is-celebrating .rank-1 .qm-award-emblem { animation: qmAwardCrown 1200ms ease-out both; animation-delay: calc(var(--qm-award-seek) + 400ms); }
+.qm-awards.is-celebrating .rank-1::after { content: ''; position: absolute; inset: -50%; pointer-events: none; background: linear-gradient(110deg, transparent 40%, #fff9 49%, transparent 58%); animation: qmAwardShine 1800ms ease-out both; animation-delay: calc(var(--qm-award-seek) + 600ms); }
+@keyframes qmAwardLift { 0% { opacity: 0; transform: translateY(24px) scale(.88); } 65% { opacity: 1; transform: translateY(-5px) scale(1.025); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes qmAwardCrown { 0% { transform: translateY(-14px) rotate(-12deg) scale(.7); } 50% { transform: translateY(1px) rotate(6deg) scale(1.15); } 100% { transform: none; } }
+@keyframes qmAwardShine { from { opacity: 0; transform: translateX(-75%); } 30% { opacity: .7; } to { opacity: 0; transform: translateX(75%); } }
+@keyframes qmAwardSpark { 0% { opacity: 0; transform: translateY(-15px) rotate(0); } 12% { opacity: .9; } 100% { opacity: 0; transform: translateY(230px) rotate(var(--spark-turn)); } }
+.qm-ai-preset { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; margin: 8px 0 14px; }
+.qm-ai-preset small { color: #627262; }
+.qm-candidate-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); list-style: none; padding: 0; gap: 7px; }
+.qm-candidate-choices li { display: flex; gap: 8px; padding: 9px; border: 1px solid #dce3d8; border-radius: 8px; min-width: 0; }
+.qm-candidate-choices li > span:first-child { color: #627262; font-size: 12px; font-weight: 800; }
+.qm-candidate-choices .correct { background: #eef7e7; border-color: #90b785; }
+.qm-candidate article > a { display: inline-block; margin-top: 9px; color: #42664f; font-size: 12px; overflow-wrap: anywhere; }
+@media(max-width:600px) {
+  .qm-awards { padding: 18px 14px 12px; }
+  .qm-award-heading { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .qm-personal-award { font-size: 12px; padding: 7px 10px; }
+  .qm-award-grid { gap: 7px; }
+  .qm-award-card { min-height: 153px; padding: 12px 6px; gap: 7px; }
+  .qm-award-card.rank-1 { min-height: 174px; }
+  .qm-award-names strong { font-size: 14px; }
+  .qm-award-emblem { width: 30px; height: 30px; }
+  .qm-award-card.rank-1 .qm-award-emblem { width: 38px; height: 38px; }
+  .qm-award-place { font-size: 25px; }
+  .qm-award-record { font-size: 11px; }
+  .qm-candidate-choices { grid-template-columns: 1fr; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .qm-award-sparks { display: none; }
+  .qm-awards.is-celebrating .qm-award-card,
+  .qm-awards.is-celebrating .rank-1 .qm-award-emblem,
+  .qm-awards.is-celebrating .rank-1::after { animation: none; }
+  .qm-awards.is-celebrating .rank-1::after { display: none; }
+}

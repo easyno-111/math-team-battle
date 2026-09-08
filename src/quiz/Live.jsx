@@ -7,7 +7,9 @@ import MathText from '../components/MathText';
 import AnswerInput from './AnswerInput';
 import Workshop from './Workshop';
 import QuizDialog from './QuizDialog';
-import QuizBoard, { ChoiceMark, QuizBrand } from './QuizBoard';
+import RoundBreakdown from './RoundBreakdown';
+import QuizAwards from './QuizAwards';
+import QuizBoard, { QuizBrand } from './QuizBoard';
 import { answerLabel, leaderboard, newId, publicQuestion, settleRound, validateSet } from './model';
 import './quiz.css';
 
@@ -20,30 +22,29 @@ function useClock(db) {
     const timer=setInterval(refresh,200);return()=>{clearInterval(timer);stopOffset();stopConnected();};
   },[db]);return clock;
 }
-function Results({ room, uid }) {
+function Results({ room, uid, canInspect = false, onInspectChange, now }) {
   const rows = leaderboard(room.players, room.scores), mine = rows.find(r => r.id === uid), result = room.results?.[uid];
   const q = room.reveal, finished = room.phase === 'finished';
-  const answers = Object.values(room.results || {});
-  const distribution = q?.type === 'choice' || q?.type === 'ox' ? q.choices.map((label, i) => ({ label, count: answers.filter(r => r.answer === i).length })) : null;
   const sliderAnswers = q?.type === 'slider' ? Object.entries(room.results || {}).filter(([, r]) => typeof r.answer === 'number') : [];
   const rise = rows.reduce((best, r) => (r.maxRise || 0) > (best?.maxRise || 0) ? r : best, null);
   const longest = rows.reduce((best, r) => (r.maxStreak || 0) > (best?.maxStreak || 0) ? r : best, null);
   const mostCorrect = rows.reduce((best, r) => r.correct > (best?.correct || 0) ? r : best, null);
   return <div className={`qm-results${finished ? ' is-final' : ''}`}>
+    <QuizAwards room={room} uid={uid} now={now}/>
     <div className="qm-result-main">
-      {finished ? <><div className="qm-result-heading"><small>오늘의 퀴즈 완료</small><h2>모두 수고했어요!</h2><p>{room.title}</p></div><div className="qm-podium">{rows.slice(0, 3).map(p => <article key={p.id}><span className="qm-medal">{p.rank}위</span><strong>{p.name}</strong><b>{p.total.toLocaleString()}<small>점</small></b></article>)}</div><div className="qm-highlights">{mostCorrect && <span>최다 정답 <b>{mostCorrect.name}</b><small>{mostCorrect.correct}개</small></span>}{longest && <span>최장 연속 정답 <b>{longest.name}</b><small>{longest.maxStreak}개</small></span>}{rise && <span>최대 순위 상승 <b>{rise.name}</b><small>↑ {rise.maxRise}위</small></span>}</div></> : <><div className="qm-result-heading"><small>정답을 확인해요</small><h2>이렇게 풀면 돼요</h2></div><div className="qm-correct"><span className="qm-correct-icon" aria-hidden="true">✓</span><MathText text={room.correctLabel || ''}/></div>{q?.explanation && <div className="qm-explanation"><small>해설</small><MathText text={q.explanation}/></div>}</>}
+      {finished ? <><div className="qm-result-heading"><small>오늘의 퀴즈 완료</small><h2>모두 수고했어요!</h2><p>{room.title}</p></div><div className="qm-highlights">{mostCorrect && <span>최다 정답 <b>{mostCorrect.name}</b><small>{mostCorrect.correct}개</small></span>}{longest && <span>최장 연속 정답 <b>{longest.name}</b><small>{longest.maxStreak}개</small></span>}{rise && <span>최대 순위 상승 <b>{rise.name}</b><small>↑ {rise.maxRise}위</small></span>}</div></> : <><div className="qm-result-heading"><small>정답을 확인해요</small><h2>이렇게 풀면 돼요</h2></div><div className="qm-correct"><span className="qm-correct-icon" aria-hidden="true">✓</span><MathText text={room.correctLabel || ''}/></div>{q?.explanation && <div className="qm-explanation"><small>해설</small><MathText text={q.explanation}/></div>}</>}
       {mine && finished ? <div className="qm-my-result correct"><strong>나의 최종 기록</strong><b>{mine.rank}위 · {mine.total.toLocaleString()}점</b><small>{mine.correct}문제 정답</small></div> : result && <div className={`qm-my-result ${result.correct ? 'correct' : ''}`} role="status"><strong>{result.correct ? '정답이에요!' : result.points > 0 ? '가까웠어요!' : result.submitted ? '다음 문제에 도전!' : '이번 문제는 미제출'}</strong><b>+{result.points.toLocaleString()}<small>점</small></b>{result.streak >= 2 && <span className={result.streak >= 5 ? 'qm-hot-streak' : ''}>{result.streak} 연속 정답!</span>}<small>현재 {mine?.rank || '-'}위 · 총 {mine?.total || 0}점 {result.rankChange > 0 ? ` · ↑${result.rankChange} 상승` : ''}</small></div>}
-      {!finished && <><p className="qm-summary">정답 <b>{answers.filter(r => r.correct).length}명</b> · 제출 {answers.filter(r => r.submitted).length} / {rows.length}명</p>
-        {distribution && <div className="qm-distribution">{distribution.map((d, i) => <div key={i} className={i === Number(q.correctIndex) ? 'correct' : ''}><ChoiceMark index={i}/><span className="qm-distribution-label"><MathText text={d.label}/>{i === Number(q.correctIndex) && <small>정답</small>}</span><meter aria-label={`${i + 1}번 보기 선택 인원`} min="0" max={Math.max(1, rows.length)} value={d.count}/><b>{d.count}명</b></div>)}</div>}
+      {!finished && <><RoundBreakdown room={room} interactive={canInspect} onInspectChange={onInspectChange}/>
         {q?.type === 'slider' && <div className="qm-result-slider"><div className="qm-result-track"><b style={{ left: `${100 * (q.target - q.min) / (q.max - q.min)}%` }}>정답 {q.target}</b>{sliderAnswers.map(([id, r], i) => <i key={id} title={`${r.name}: ${r.answer}`} style={{ left: `${Math.max(0, Math.min(100, 100 * (r.answer - q.min) / (q.max - q.min)))}%`, top: `${25 + i % 4 * 9}px` }}/>)}</div><small>{q.min} ~ {q.max} · 점은 학생들이 제출한 값이에요.</small></div>}
       </>}
     </div>
     <section className="qm-rank-panel"><div className="qm-section-head"><h3>{finished ? '최종 순위' : '실시간 순위'}</h3><small>{rows.length}명 · 동점은 공동 순위</small></div><div className="qm-leaderboard" tabIndex={0} aria-label="학생 순위 목록">{rows.map(p => <div className={p.id === uid ? 'mine' : ''} key={p.id}><b className="qm-rank-number">{p.rank}</b><strong>{p.name}{p.id === uid && <small>나</small>}</strong><span>{p.correct}정답</span><b>{p.total.toLocaleString()}<small>점</small></b></div>)}</div></section>
   </div>;
 }
-export default function QuizHost({user,questions}) {
+export default function QuizHost({user,questions,importNotice='',onImportNoticeClear}) {
   const [code,setCode]=useState(()=>localStorage.getItem(`qm-host:${user.uid}`)||''),[room,setRoom]=useState(null),[privateSet,setPrivateSet]=useState(null),[submissions,setSubmissions]=useState({}),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[qrLarge,setQrLarge]=useState(false);
   const [autoPaused,setAutoPaused]=useState(false);
+  const [inspectingResults,setInspectingResults]=useState(false);
   const lock=useRef(false);const clock=useClock(adminRealtime);
   useEffect(()=>{if(!code||!adminRealtime)return undefined;const stop=onValue(ref(adminRealtime,`quizRooms/${code}`),s=>{const value=s.val();if(!value){setCode('');localStorage.removeItem(`qm-host:${user.uid}`);setRoom(null);}else if(value.hostUid===user.uid)setRoom(value);else{setMessage('이 방의 교사가 아닙니다.');setCode('');}},e=>setMessage(`방 연결 오류: ${e.message}`));
     const secret=onValue(ref(adminRealtime,`quizSecrets/${code}`),s=>setPrivateSet(s.val()?{...s.val(),code}:null),e=>setMessage(`진행 자료 연결 오류: ${e.message}`));return()=>{stop();secret();};
@@ -56,14 +57,14 @@ export default function QuizHost({user,questions}) {
     if(!roomCode)throw new Error('방 번호 생성에 실패했습니다. 다시 시도하세요.');
     try {await set(ref(adminRealtime,`quizSecrets/${roomCode}`),{hostUid:user.uid,questions:draft.questions,title:draft.title});}
     catch(e){await set(ref(adminRealtime,`quizRooms/${roomCode}`),null).catch(()=>{});throw e;}
-    localStorage.setItem(`qm-host:${user.uid}`,roomCode);setCode(roomCode);
+    localStorage.setItem(`qm-host:${user.uid}`,roomCode);setCode(roomCode);onImportNoticeClear?.();
   }
   async function act(work) {if(lock.current)return;lock.current=true;setBusy(true);setAutoPaused(false);setMessage('');try{await work();}catch(e){setAutoPaused(true);setMessage(`진행 오류: ${e.message}\n자동 진행을 멈췄습니다. 연결 확인 후 진행 버튼을 다시 눌러주세요.`);}finally{lock.current=false;setBusy(false);}}
   async function nextRound(){await act(async()=>{
     if(privateSet?.code!==code)throw new Error('문제 자료를 불러오는 중입니다.');
     const current=(await get(ref(adminRealtime,`quizRooms/${code}`))).val();if(!current||!['waiting','reveal'].includes(current.phase))return;
     const index=Number(current.index)+1;
-    if(index>=privateSet.questions.length){await update(ref(adminRealtime,`quizRooms/${code}`),{phase:'finished'});return;}
+    if(index>=privateSet.questions.length){await update(ref(adminRealtime,`quizRooms/${code}`),{phase:'finished',finishedAt:Date.now()+clock.offset});return;}
     const q=privateSet.questions[index],roundId=newId(),pub=publicQuestion(q);
     await runTransaction(ref(adminRealtime,`quizRooms/${code}`),latest=>!latest||!['waiting','reveal'].includes(latest.phase)||latest.index!==current.index?undefined:{...latest,index,roundId,phase:'preview',question:pub,previewAt:Date.now()+clock.offset,results:null,reveal:null,correctLabel:null,startAt:null,endAt:null});
   });}
@@ -84,18 +85,19 @@ export default function QuizHost({user,questions}) {
     if(!room||privateSet?.code!==code||!clock.connected||lock.current||autoPaused)return undefined;
     const timer=setTimeout(()=>{
     if(room.phase==='answer'&&clock.now>=room.startAt&&(clock.now>=room.endAt||Object.keys(submissions).filter(id=>room.players?.[id]&&submissions[id].roundId===room.roundId).length>=Object.keys(room.players||{}).length&&Object.keys(room.players||{}).length>0)) void finishRound();
-    if(room.options?.autoAdvance&&room.phase==='reveal'&&clock.now>=room.revealedAt+6000)void nextRound();
+    if(room.options?.autoAdvance&&!inspectingResults&&room.phase==='reveal'&&clock.now>=room.revealedAt+6000)void nextRound();
     if(room.options?.autoAdvance&&room.phase==='preview'&&clock.now>=room.previewAt+5000)void openAnswers();
     },0);return()=>clearTimeout(timer);
     // Effects observe immutable room snapshots; commands guard themselves with transactions.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[clock.now,clock.connected,room,privateSet,submissions,code,autoPaused]);
-  if(!code)return <div className="qm-root">{message&&<p className="qm-message">{message}</p>}<Workshop user={user} questions={questions} onCreate={create}/></div>;
+  },[clock.now,clock.connected,room,privateSet,submissions,code,autoPaused,inspectingResults]);
+  if(!code)return <div className="qm-root">{message&&<p className="qm-message">{message}</p>}<Workshop user={user} questions={questions} onCreate={create} importNotice={importNotice} onImportNoticeClear={onImportNoticeClear}/></div>;
   if(!room)return <div className="qm-root qm-panel"><p>{message||'방 연결 중…'}</p><button onClick={()=>{setCode('');localStorage.removeItem(`qm-host:${user.uid}`);}}>세트 화면으로</button></div>;
   const players=Object.entries(room.players||{}),submitted=Object.keys(submissions).filter(uid=>room.players?.[uid]&&submissions[uid].roundId===room.roundId).length;
   const url=new URL(window.location.href);url.search='';url.hash='';url.searchParams.set('mode','quizstudent');url.searchParams.set('quiz',code);
   return <section className="qm-root qm-host">
-    <header className="qm-title qm-live-title"><QuizBrand subtitle={room.title}/><div className="qm-session-meta"><span className={`qm-connection ${clock.connected ? 'online' : ''}`}><i/>{clock.connected ? '연결됨' : '연결 복구 중'}</span><span className="qm-room-pin">방 번호 <b>{code}</b></span><small>v0.13.0</small></div></header>
+    <header className="qm-title qm-live-title"><QuizBrand subtitle={room.title}/><div className="qm-session-meta"><span className={`qm-connection ${clock.connected ? 'online' : ''}`}><i/>{clock.connected ? '연결됨' : '연결 복구 중'}</span><span className="qm-room-pin">방 번호 <b>{code}</b></span><small>v0.15.0</small></div></header>
+    {importNotice && <p className="qm-message" role="status">{importNotice}<br/>진행 중인 방은 그대로 유지됩니다. 담은 문제는 다음 퀴즈 초안에서 확인할 수 있어요. {onImportNoticeClear&&<button type="button" onClick={onImportNoticeClear}>확인</button>}</p>}
     {message && <p className="qm-message" role="status">{message}</p>}
     {room.phase === 'waiting' ? <div className="qm-wait-grid">
       <section className="qm-panel qm-join-panel"><small className="qm-eyebrow">오늘의 퀴즈 교실</small><h2>함께 풀 준비됐나요?</h2><p>QR을 찍거나 학생 화면에<br/>방 번호를 입력해주세요.</p><div className="qm-room-code" aria-label={`방 번호 ${code}`}>{code}</div><RoomQrCode roomCode={code} joinUrl={url.toString()} onOpenLarge={setQrLarge}/><button onClick={()=>window.open(url.toString(),'_blank','noopener,noreferrer')}>학생 화면 열기 <span aria-hidden="true">↗</span></button><small>{room.total}문제 · 정확도와 속도로 점수가 올라가요</small></section>
@@ -105,15 +107,15 @@ export default function QuizHost({user,questions}) {
       {room.phase === 'preview' && <div className="qm-control-bar"><p>문제를 충분히 읽었다면 답변을 시작해주세요.</p><button className="qm-primary" disabled={busy||!clock.connected} onClick={openAnswers}>답변 시작 <small>3초 카운트다운</small><span aria-hidden="true">→</span></button></div>}
       {room.phase === 'answer' && <section className="qm-panel qm-response-panel"><div className="qm-section-head"><h3>우리 반의 답변</h3><b>{submitted} <small>/ {players.length}명</small></b></div><progress aria-label="답변 제출 현황" value={submitted} max={Math.max(1,players.length)}/><details><summary>학생별 제출 현황 보기</summary><div className="qm-player-grid">{players.map(([uid,p])=><span className={submissions[uid]?.roundId===room.roundId?'submitted':''} key={uid} title={p.name}><strong>{p.name}</strong><small>{submissions[uid]?.roundId===room.roundId?'✓ 제출':'풀이 중'}</small></span>)}</div></details><div className="qm-control-bar"><small>모두 제출하거나 시간이 끝나면 정답을 공개합니다.</small><button disabled={busy||!clock.connected} onClick={finishRound}>지금 마감하고 정답 공개</button></div></section>}
       {room.phase === 'grading' && <div className="qm-control-bar"><p>제출한 답안을 확인하고 있어요.</p><button disabled={busy||privateSet?.code!==code||!clock.connected} onClick={()=>act(()=>completeGrading(room))}>채점 재개</button></div>}
-      {['reveal','finished'].includes(room.phase) && <Results room={room}/>}
-      {room.phase === 'reveal' && <div className="qm-control-bar"><p>{room.options?.autoAdvance?'잠시 후 다음으로 자동 진행됩니다.':'결과를 함께 확인하고 다음으로 넘어가세요.'}</p><button className="qm-primary" disabled={busy||privateSet?.code!==code||!clock.connected} onClick={nextRound}>{room.index+1>=room.total?'최종 결과 보기':'다음 문제'} <span aria-hidden="true">→</span></button></div>}
+      {['reveal','finished'].includes(room.phase) && <Results key={room.roundId} room={room} canInspect onInspectChange={setInspectingResults} now={clock.now}/>}
+      {room.phase === 'reveal' && <div className="qm-control-bar"><p>{inspectingResults?'학생 명단 확인 중 · 자동 진행을 잠시 멈췄어요.':room.options?.autoAdvance?'잠시 후 다음으로 자동 진행됩니다.':'결과를 함께 확인하고 다음으로 넘어가세요.'}</p><button className="qm-primary" disabled={busy||privateSet?.code!==code||!clock.connected} onClick={nextRound}>{room.index+1>=room.total?'최종 결과 보기':'다음 문제'} <span aria-hidden="true">→</span></button></div>}
     </div>}
     <footer className="qm-session-footer"><small>진행 중에는 교사 화면을 열어두세요. 새로고침해도 같은 방으로 돌아옵니다.</small><button className="qm-text-button" disabled={busy} onClick={()=>{if(window.prompt('방과 답변 기록을 삭제하려면 “방 삭제”를 입력하세요.')!=='방 삭제')return;void act(async()=>{await update(ref(adminRealtime),{[`quizRooms/${code}`]:null,[`quizSecrets/${code}`]:null,[`quizAnswers/${code}`]:null});localStorage.removeItem(`qm-host:${user.uid}`);setCode('');setRoom(null);});}}>방 삭제</button></footer>
     {qrLarge && <QuizDialog title={`방 번호 ${code}`} onClose={()=>setQrLarge(false)} className="qm-qr-modal"><RoomQrCode roomCode={code} joinUrl={url.toString()} onOpenLarge={()=>{}}/></QuizDialog>}
   </section>;
 }
 
-export function QuizStudent({initialCode='',version='v0.13.0'}) {
+export function QuizStudent({initialCode='',version='v0.15.0'}) {
   const [user,setUser]=useState(null),[code,setCode]=useState(()=>initialCode||sessionStorage.getItem('qm-student-code')||''),[name,setName]=useState(()=>sessionStorage.getItem('qm-student-name')||''),[activeCode,setActiveCode]=useState(''),[room,setRoom]=useState(null),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[sent,setSent]=useState('');
   const submitLock=useRef(false),clock=useClock(studentRealtime);
   useEffect(()=>{const stop=onAuthStateChanged(studentAuth,setUser);let cancelled=false;prepareStudentAuthPersistence().then(()=>studentAuth.authStateReady()).then(()=>{if(!cancelled&&!studentAuth.currentUser)return signInAnonymously(studentAuth);}).catch(e=>setMessage(`학생 로그인 실패: ${e.message}`));return()=>{cancelled=true;stop();};},[]);
@@ -128,7 +130,7 @@ export function QuizStudent({initialCode='',version='v0.13.0'}) {
     {!clock.connected&&<p className="qm-message" role="status">연결 복구 중입니다. 연결되면 다시 제출할 수 있어요.</p>}{message&&<p className="qm-message" role="status">{message}</p>}
     {room.phase==='waiting'&&<section className="qm-student-wait"><div className="qm-welcome-board"><span className="qm-wait-check" aria-hidden="true">✓</span><small>퀴즈 교실 입장 완료</small><h1>{me?.name || name}님,<br/>반가워요!</h1><p>{room.title}</p><div className="qm-wait-status"><i/>선생님이 곧 문제를 시작해요</div></div><div className="qm-wait-tips"><div><b>01</b><strong>문제를 읽어요</strong><small>큰 화면과 내 화면에서 확인</small></div><div><b>02</b><strong>답을 정해요</strong><small>고르고, 적고, 움직여서 풀기</small></div><div><b>03</b><strong>빠르게 제출!</strong><small>정답에 속도 점수까지</small></div></div></section>}
     {['preview','answer','grading'].includes(room.phase)&&room.question&&<><QuizBoard question={room.question} index={room.index} total={room.total} phase={room.phase} now={clock.now} startAt={room.startAt} endAt={room.endAt} showQuestion={Boolean(room.options?.showQuestion)}/>{submitted?<div className="qm-submitted" role="status"><span className="qm-wait-check" aria-hidden="true">✓</span><h2>답안이 도착했어요!</h2><p>모두의 답이 모이면 정답을 공개해요.</p><small>친구들이 풀고 있어요. 잠시만 기다려주세요.</small></div>:<div className="qm-panel qm-answer-panel"><AnswerInput key={room.roundId} question={room.question} disabled={!open||busy} disabledLabel={busy?'답안을 보내는 중…':room.phase==='grading'?'정답 확인 중':!clock.connected?'연결 복구 중':room.phase==='answer'&&clock.now>=room.endAt?'답변 마감':'답변 시작을 기다려주세요'} onSubmit={submit}/></div>}</>}
-    {['reveal','finished'].includes(room.phase)&&<Results room={room} uid={user?.uid}/>}
+    {['reveal','finished'].includes(room.phase)&&<Results key={room.roundId} room={room} uid={user?.uid} now={clock.now}/>}
     <footer className="qm-student-footer"><small>퀴즈 모드 · {version}</small><span className={`qm-connection ${clock.connected?'online':''}`}><i/>{clock.connected?'연결됨':'연결 복구 중'}</span></footer>
   </main>;
 }

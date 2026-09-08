@@ -10,6 +10,7 @@ import {
 } from "firebase/firestore";
 
 import MathText from "./MathText";
+import { groundedSchema, isNonsenseRequest, nonsenseGuide, referenceBlock, safeSources, searchNonsense, verifyNonsenseDrafts, withAiTimeout } from '../utils/aiQuestionPolicy';
 import { checkAndRecordAiRequest, isClientAiRateLimitError } from "../utils/aiSafety";
 
 const API_KEY_STORAGE = "math-team-battle:gemini-api-key";
@@ -110,7 +111,7 @@ function getUnit(item) {
 }
 
 function getErrorMessage(error) {
-  if (isClientAiRateLimitError(error)) return error.message;
+  if (isClientAiRateLimitError(error) || /넌센스|후보|AI 응답/.test(error.message || "")) return error.message;
   const message = String(error?.message || "");
   if (/API key|key not valid|invalid.*key/i.test(message)) {
     return "Gemini API 키를 찾을 수 없거나 사용할 수 없습니다. AI 문제 만들기 화면에서 연결 상태를 확인해주세요.";
@@ -208,6 +209,8 @@ function SimilarQuestionGenerator({
       return;
     }
     if (!sources.length) return;
+    const nonsense = isNonsenseRequest({source:sources});
+    if(nonsense&&sources.some(source=>!isNonsenseRequest({source}))){setErrorMessage('넌센스와 교과 문제는 따로 선택해서 유사문제를 생성해주세요.');return;}
 
     try {
       setGenerating(true);
@@ -215,19 +218,27 @@ function SimilarQuestionGenerator({
       checkAndRecordAiRequest();
 
       const ai = provider==='gemini'?new GoogleGenAI({ apiKey: apiKey.trim() }):null;
-      const response = provider==='openai'?null:await ai.models.generateContent({
+      let prompt = buildPrompt();
+      let references = [];
+      if(nonsense){
+        prompt += `\n${nonsenseGuide}\n넌센스 원본은 단서나 정답을 임의로 교체하지 마세요. 같은 주제의 검증된 다른 후보를 찾고 parentIndex로 연결하세요. 검증된 다른 후보가 없으면 variants:[]와 note에 이유를 쓰세요.`;
+        if(provider==='gemini'){const found=await searchNonsense(ai,model,prompt,totalRequested);references=found.sources;prompt+=referenceBlock(found);}
+      }
+      const response = provider==='openai'?null:await withAiTimeout(ai.models.generateContent({
         model,
-        contents: buildPrompt(),
+        contents: prompt,
         config: {
           responseMimeType: "application/json",
-          responseSchema: VARIANT_SCHEMA,
-          temperature: variantType === "surface" ? 0.45 : 0.7,
+          responseSchema: nonsense ? groundedSchema(VARIANT_SCHEMA, 'variants') : VARIANT_SCHEMA,
+          temperature: nonsense ? 0.2 : variantType === "surface" ? 0.45 : 0.55,
         },
-      });
+      }));
 
-      const parsed = provider==='openai'?await advanced.run({kind:'variant',prompt:buildPrompt()}):JSON.parse(response.text || '{}');
+      let parsed = provider==='openai'?await advanced.run({kind:nonsense?'variantWeb':'variant',prompt}):JSON.parse(response.text || '{}');
+      if(provider==='openai')references=safeSources(parsed._sources || []);
+      if(nonsense)parsed=verifyNonsenseDrafts(parsed,references,'variants');
       const rows = Array.isArray(parsed.variants) ? parsed.variants.slice(0, totalRequested) : [];
-      if (!rows.length) throw new Error("No variants generated");
+      if (!rows.length) throw new Error(parsed.note || "검증된 유사문제 후보가 없습니다. 주제를 바꿔주세요.");
 
       const local = [];
       rows.forEach((raw, index) => {
@@ -255,7 +266,7 @@ function SimilarQuestionGenerator({
       });
 
       setGenerated(local);
-      onMessage?.(`원본 ${sources.length}개에서 유사문제 ${local.length}개를 생성했습니다. 저장 전에 정답을 확인해주세요.`);
+      onMessage?.(`원본 ${sources.length}개에서 유사문제 ${local.length}개를 생성했습니다. ${parsed.note || "저장 전에 정답을 확인해주세요."}`);
     } catch (error) {
       console.error("유사문제 생성 오류:", error);
       setErrorMessage(provider==='openai'?error.message:getErrorMessage(error));

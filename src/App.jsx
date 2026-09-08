@@ -27,10 +27,11 @@ import SimilarQuestionGenerator from "./components/SimilarQuestionGenerator";
 import MathText from "./components/MathText";
 import StudentLobby from "./components/StudentLobby";
 import QuizHost, { QuizStudent } from "./quiz/Live";
+import { appendBankQuestions, prepareBank, readQuizDraft } from "./quiz/bank";
 import { isMultipleChoiceQuestion } from "./utils/questionExcel";
 import "./App.css";
 
-const VERSION = "v0.13.0";
+const VERSION = "v0.15.0";
 const LEGACY_CATEGORY = "기존 문제";
 const CHOICE_LABELS = ["①", "②", "③", "④"];
 const DELETE_BATCH_SIZE = 400;
@@ -98,6 +99,8 @@ function App() {
   const [difficulty, setDifficulty] = useState("보통");
 
   const [questions, setQuestions] = useState([]);
+  const [quizImportNotice, setQuizImportNotice] = useState("");
+  const [quizImportError, setQuizImportError] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
@@ -287,6 +290,21 @@ function App() {
   const selectedCount = selectedQuestionIds.size;
   const visibleQuestionIds = useMemo(() => filteredQuestions.map((item) => item.id), [filteredQuestions]);
   const allVisibleSelected = visibleQuestionIds.length > 0 && visibleQuestionIds.every((id) => selectedQuestionIds.has(id));
+
+  function sendSelectedToQuiz() {
+    try {
+      const chosen=questions.filter(item=>selectedQuestionIds.has(item.id));
+      const prepared=prepareBank(chosen);
+      if(!prepared.length)throw new Error('출제에 포함된 유효한 객관식 문제를 선택해주세요.');
+      const key=`qm-draft:${user.uid}`;
+      const draft=readQuizDraft(localStorage.getItem(key));
+      const result=appendBankQuestions(draft,prepared);
+      localStorage.setItem(key,JSON.stringify(result.draft));
+      setQuizImportNotice(`문제은행에서 ${result.added}문제를 퀴즈 초안에 담았습니다. 총 ${result.draft.questions.length}문제입니다.${result.skipped?` 중복 ${result.skipped}문제는 제외했습니다.`:''}${chosen.length-prepared.length?` 출제 제외 또는 형식이 맞지 않는 ${chosen.length-prepared.length}문제는 가져오지 않았습니다.`:''} 세트 저장을 눌러 보관하세요.`);
+      setQuizImportError('');
+      changeSection('quiz');
+    }catch(error){setQuizImportError(error.message || '퀴즈 초안을 저장하지 못했습니다.');}
+  }
 
   const toggleQuestionSelection = (questionId) => {
     setSelectedQuestionIds((current) => {
@@ -776,8 +794,6 @@ function App() {
 
   return (
     <main className={`admin-shell ${activeSection === "room" ? "room-section-active" : ""} ${activeSection === "ai" ? "ai-section-active" : ""}`}>
-      <div className="pastel-blob pastel-blob-one" />
-      <div className="pastel-blob pastel-blob-two" />
 
       <header className="admin-header">
         <div className="brand-block">
@@ -1073,6 +1089,7 @@ function App() {
 
                   {selectedCount > 0 && (
                     <div className="question-bulk-actions">
+                      <button type="button" className="bulk-quiz-button" onClick={sendSelectedToQuiz} disabled={bulkBusy}>퀴즈 초안에 담기</button>
                       <div className="bulk-category-editor">
                         <input
                           list="bulk-category-options"
@@ -1120,6 +1137,7 @@ function App() {
                 </div>
               )}
 
+              {quizImportError && <p className="status-message" role="alert">{quizImportError}</p>}
               <div className="question-scroll-box" tabIndex={0} aria-label="저장된 문제 스크롤 영역">
               {questions.length === 0 ? (
                 <div className="empty-state">
@@ -1337,7 +1355,7 @@ function App() {
 
           <ExcelQuestionImporter user={user} questions={questions} />
         </>
-      ) : activeSection === "quiz" ? (<QuizHost key={user.uid} user={user} questions={questions} />) : activeSection === "ai" ? (
+      ) : activeSection === "quiz" ? (<QuizHost key={user.uid} user={user} questions={questions} importNotice={quizImportNotice} onImportNoticeClear={()=>setQuizImportNotice('')} />) : activeSection === "ai" ? (
         <AIQuestionGenerator
           db={db}
           user={user}
