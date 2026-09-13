@@ -31,7 +31,7 @@ import { appendBankQuestions, prepareBank, readQuizDraft } from "./quiz/bank";
 import { isMultipleChoiceQuestion } from "./utils/questionExcel";
 import "./App.css";
 
-const VERSION = "v0.15.0";
+const VERSION = "v0.16.0";
 const LEGACY_CATEGORY = "기존 문제";
 const CHOICE_LABELS = ["①", "②", "③", "④"];
 const DELETE_BATCH_SIZE = 400;
