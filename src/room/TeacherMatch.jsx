@@ -50,7 +50,7 @@ export default function TeacherMatch({ room, roomCode, teams, participants, byTe
     <section className="teacher-match-shell" style={{ backgroundImage: `url(${battleArenaBg})` }}>
       <div className="match-scene-shade" />
 
-      <header className="teacher-match-scoreboard">
+      <header className="teacher-match-scoreboard" style={{ "--teams": teams.length }}>
         {teams.map((team) => {
           const state = teamStates[team];
           const ratio = state ? hpRatio(state) : 1;

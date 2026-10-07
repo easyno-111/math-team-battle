@@ -288,7 +288,7 @@ export default function StudentLobby({ initialRoomCode = "", version }) {
   );
 }
 
-function StudentMatch({ room, roomCode, session, team, teams, myState, selectedChoice, submitChoice, submitting, feedback, error, version }) {
+export function StudentMatch({ room, roomCode, session, team, teams, myState, selectedChoice, submitChoice, submitting, feedback, error, version }) {
   const now = useNow(true);
   const remaining = Number(room.scheduledEndAt || now) - now;
   const teamStates = normalizeTeams(room.teams);

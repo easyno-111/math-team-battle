@@ -45,15 +45,22 @@ export default function TeacherLobby({ room, roomCode, teams, participants, byTe
       <div className="lobby-vignette" />
       <div className="teacher-lobby-topbar">
         <div className="lobby-title-card"><span>{isLocked ? "입장 마감" : "학생 입장 중"}</span><strong>{room.title || "오늘의 수학 대결"}</strong></div>
-        <div className="lobby-room-code-card"><span>방 코드</span><strong>{roomCode}</strong><button type="button" onClick={copyJoinUrl}>주소 복사</button></div>
+        <div className="lobby-room-code-card"><span>방 코드</span><strong>{roomCode}</strong><small>학생 화면에서 이 네 자리를 입력해요</small></div>
         <div className="lobby-online-card"><span>현재 접속</span><strong>{online}명</strong><small>전체 등록 {participants.length}명</small></div>
       </div>
 
-      <div className={`teacher-team-grid teacher-team-grid-with-qr team-count-${teams.length}`}>
+      <div className="lobby-join-link">
+        <span>입장 링크</span>
+        <input readOnly value={joinUrl} onFocus={(e) => e.target.select()} aria-label="학생 입장 링크" />
+        <button type="button" className="primary" onClick={copyJoinUrl}>링크 복사</button>
+        <button type="button" onClick={() => window.open(joinUrl, "_blank", "noopener,noreferrer")}>새 창으로 열기</button>
+      </div>
+
+      <div className={`teacher-team-grid team-count-${teams.length}`}>
         <div className="teacher-team-panels-wrap">
           {teams.map((team) => <TeamPanel key={team} team={team} participants={byTeam[team] || []} teamOptions={teams} onMove={onMove} />)}
         </div>
-        <div className="lobby-center-spacer qr-center-column">
+        <div className="qr-center-column">
           <RoomQrCode joinUrl={joinUrl} roomCode={roomCode} onOpenLarge={setQrLarge} />
           <div className="rope-status-card">
             <span>준비 중</span>
@@ -74,7 +81,6 @@ export default function TeacherLobby({ room, roomCode, teams, participants, byTe
         </div>
         {isLocal && <div className="local-qr-warning">지금 주소가 localhost라서 다른 기기의 QR 접속은 되지 않아요. 배포 후 자동으로 해결되며, 필요하면 .env.local에 VITE_PUBLIC_APP_URL을 넣을 수 있어요.</div>}
         <div className="lobby-action-row">
-          <button type="button" className="lobby-soft-button" onClick={() => window.open(joinUrl, "_blank", "noopener,noreferrer")}>학생 화면 열기</button>
           <button type="button" className="lobby-soft-button" onClick={onToggleLock}>{isLocked ? "입장 다시 받기" : "입장 마감"}</button>
           <button type="button" className="lobby-start-button" disabled={!canStart} onClick={onStart}>{busy ? "경기 준비 중..." : "경기 시작"}</button>
           {!closing ? (
@@ -84,7 +90,6 @@ export default function TeacherLobby({ room, roomCode, teams, participants, byTe
           )}
         </div>
         {message && <div className="lobby-toast">{message}</div>}
-        <div className="join-url-hint" title={joinUrl}>{joinUrl}</div>
       </div>
 
       {qrLarge && (

@@ -10,7 +10,7 @@ const room = (overrides = {}) => ({
   playerStates: { s1: { ...initialPlayerState(pool[0], () => 0), currentQuestion: { id: 'q1', choices: ['1', '2', '3', '4'] } } },
   ...overrides,
 });
-const teams = () => ({ A: createTeamState(1, 10), B: createTeamState(1, 10) });
+const teams = () => ({ A: createTeamState(1, 150), B: createTeamState(1, 150) });
 const submission = (choice, questionId = 'q1') => ({ nonce: 'n1', questionId, choice });
 
 test('a correct answer summons a unit, damages the own gourd, advances the question and logs an event', () => {
