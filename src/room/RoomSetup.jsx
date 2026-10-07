@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { teamLabel } from "../game/teams";
-import { gourdMaxHp } from "../game/rules";
+import { clampHpPerMember, DEFAULT_HP_PER_MEMBER, gourdMaxHp, HP_PER_MEMBER_RANGE, HP_PRESETS } from "../game/rules";
 import { DURATION_OPTIONS } from "./roomUtils";
 import teacherLobbyBg from "../assets/game/teacher-lobby.webp";
 
@@ -24,6 +24,7 @@ export default function RoomSetup({ questions, difficulties, categoryOf, unitOf,
   const [pickedDifficulties, setPickedDifficulties] = useState(difficulties);
   const [durationMinutes, setDurationMinutes] = useState(10);
   const [teamCount, setTeamCount] = useState(2);
+  const [hpPerMember, setHpPerMember] = useState(DEFAULT_HP_PER_MEMBER);
   const [localMessage, setLocalMessage] = useState("");
 
   const selectedCategories = (pickedCategories ?? categories).filter((item) => categories.includes(item));
@@ -39,7 +40,7 @@ export default function RoomSetup({ questions, difficulties, categoryOf, unitOf,
     if (!pickedDifficulties.length) return setLocalMessage("사용할 난이도를 하나 이상 선택해주세요.");
     if (!eligible) return setLocalMessage("현재 선택으로 출제할 수 있는 문제가 없습니다.");
     setLocalMessage("");
-    return onCreate({ title: title.trim() || "오늘의 팀 퀴즈", categories: selectedCategories, units: selectedUnits, difficulties: pickedDifficulties, durationMinutes, teamCount, questionCount: eligible });
+    return onCreate({ title: title.trim() || "오늘의 팀 퀴즈", categories: selectedCategories, units: selectedUnits, difficulties: pickedDifficulties, durationMinutes, teamCount, gourdHpPerMember: clampHpPerMember(hpPerMember), questionCount: eligible });
   };
 
   return (
@@ -91,7 +92,19 @@ export default function RoomSetup({ questions, difficulties, categoryOf, unitOf,
             </div>
 
             <div className="room-option-block">
-              <div className="room-option-title"><strong>경기 시간</strong><span>박 체력은 팀 인원 × 시간에 맞춰 정해져요 (1명 기준 {gourdMaxHp(1, durationMinutes)})</span></div>
+              <div className="room-option-title"><strong>박 체력</strong><span>학생 1명당 체력 · 팀 인원만큼 곱해져요 (5명 팀이면 {gourdMaxHp(5, hpPerMember)})</span></div>
+              <div className="duration-row hp-preset-row">
+                {HP_PRESETS.map((preset) => (
+                  <button type="button" key={preset.value} className={Number(hpPerMember) === preset.value ? "selected" : ""} onClick={() => setHpPerMember(preset.value)}>{preset.label}<small>{preset.hint} · {preset.value}</small></button>
+                ))}
+                <label className="hp-custom-input">직접 입력
+                  <input type="number" min={HP_PER_MEMBER_RANGE.min} max={HP_PER_MEMBER_RANGE.max} step={10} value={hpPerMember} onChange={(e) => setHpPerMember(e.target.value)} onBlur={() => setHpPerMember(clampHpPerMember(hpPerMember))} />
+                </label>
+              </div>
+            </div>
+
+            <div className="room-option-block">
+              <div className="room-option-title"><strong>제한 시간</strong><span>박이 안 터지면 이 시간에 체력 비율로 순위를 정해요</span></div>
               <div className="duration-row">{DURATION_OPTIONS.map((minutes) => (
                 <button type="button" key={minutes} className={durationMinutes === minutes ? "selected" : ""} onClick={() => setDurationMinutes(minutes)}>{minutes}분</button>
               ))}</div>

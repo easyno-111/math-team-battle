@@ -23,7 +23,14 @@ export const SQUAD_SIZE = 12;
 export const MAX_SHIELD = 3;
 export const SHIELD_FACTOR = 0.4;
 export const BASE_DAMAGE = { 쉬움: 3, 보통: 5, 어려움: 8, 도전: 12 };
-export const HP_PER_MEMBER_PER_MINUTE = 15;
+// Gourd hp per team member. ~120 lasts two to three minutes at a normal answering pace.
+export const DEFAULT_HP_PER_MEMBER = 120;
+export const HP_PRESETS = [
+  { value: 70, label: "짧게", hint: "약 1~2분" },
+  { value: 120, label: "보통", hint: "약 2~3분" },
+  { value: 200, label: "길게", hint: "약 4~5분" },
+];
+export const HP_PER_MEMBER_RANGE = { min: 20, max: 1000 };
 export const WRONG_LOCK_MS = 10_000;
 
 export function tierForStreak(streak) {
@@ -68,14 +75,19 @@ export function unitLabel(unit) {
   return tier === 1 ? meta.label : `${TIER_LABELS[tier]} ${meta.label}`;
 }
 
-export function gourdMaxHp(memberCount, durationMinutes) {
-  const members = Math.max(1, Number(memberCount) || 1);
-  const minutes = Math.max(1, Number(durationMinutes) || 10);
-  return Math.round(members * minutes * HP_PER_MEMBER_PER_MINUTE);
+export function clampHpPerMember(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return DEFAULT_HP_PER_MEMBER;
+  return Math.round(Math.max(HP_PER_MEMBER_RANGE.min, Math.min(HP_PER_MEMBER_RANGE.max, number)));
 }
 
-export function createTeamState(memberCount, durationMinutes) {
-  const maxHp = gourdMaxHp(memberCount, durationMinutes);
+export function gourdMaxHp(memberCount, hpPerMember = DEFAULT_HP_PER_MEMBER) {
+  const members = Math.max(1, Number(memberCount) || 1);
+  return members * clampHpPerMember(hpPerMember);
+}
+
+export function createTeamState(memberCount, hpPerMember = DEFAULT_HP_PER_MEMBER) {
+  const maxHp = gourdMaxHp(memberCount, hpPerMember);
   return { hp: maxHp, maxHp, shield: 0, squad: [], summoned: 0, damageDealt: 0, members: Math.max(1, Number(memberCount) || 1) };
 }
 

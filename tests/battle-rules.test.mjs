@@ -6,14 +6,15 @@ import {
   rankTeams, resolveVolley, rollUnitClass, summonUnit, tierForStreak, unitPower,
 } from '../src/game/rules.js';
 
-const teams = (count = 2, members = 5, minutes = 10) =>
-  Object.fromEntries(['A', 'B', 'C', 'D'].slice(0, count).map((id) => [id, createTeamState(members, minutes)]));
+const teams = (count = 2, members = 5, hpPerMember = 150) =>
+  Object.fromEntries(['A', 'B', 'C', 'D'].slice(0, count).map((id) => [id, createTeamState(members, hpPerMember)]));
 const sequence = (...values) => { let i = 0; return () => values[i++ % values.length]; };
 
-test('gourd hp scales with members and duration so uneven teams stay fair', () => {
-  assert.equal(gourdMaxHp(5, 10), 750);
-  assert.equal(gourdMaxHp(7, 10), 1050);
-  assert.equal(gourdMaxHp(0, 0), 150, 'missing values fall back to one member and ten minutes');
+test('gourd hp scales with members and the teacher setting so uneven teams stay fair', () => {
+  assert.equal(gourdMaxHp(5, 150), 750);
+  assert.equal(gourdMaxHp(7, 150), 1050);
+  assert.equal(gourdMaxHp(0, 'x'), 120, 'missing values fall back to one member and the default');
+  assert.equal(gourdMaxHp(1, 5), 20, 'setting is clamped to the allowed range');
 });
 
 test('streak tiers: 1-4 normal, 5-9 reinforced, 10+ elite; next goal reported', () => {
@@ -88,7 +89,7 @@ test('a gourd bursts at zero and reports the burst', () => {
 });
 
 test('time-out ranking uses hp ratio, shares ranks and flags ties for the teacher', () => {
-  const state = teams(4, 5, 10);
+  const state = teams(4, 5, 150);
   state.A.hp = 300; state.B.hp = 300; state.C.hp = 600; state.D.maxHp = 1050; state.D.hp = 430;
   const { winner, tied, ranking } = finishByTime(state);
   assert.equal(winner, null);

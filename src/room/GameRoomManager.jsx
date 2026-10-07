@@ -3,7 +3,7 @@ import { get, onValue, push, ref, remove, runTransaction, serverTimestamp, updat
 import { adminRealtime, realtimeReady } from "../realtime";
 import { configuredTeams } from "../game/teams";
 import { filterQuestionPool, questionCategory, questionUnit, isPlayableQuestion, chooseNextQuestion, publicQuestion, DIFFICULTIES } from "../game/questions";
-import { createTeamState, finishByTime, normalizeTeams } from "../game/rules";
+import { clampHpPerMember, createTeamState, finishByTime, normalizeTeams } from "../game/rules";
 import { initialPlayerState, judgeSubmission } from "../game/grading";
 import { EVENT_HISTORY, getParticipants, groupByTeam, makeRoomCode, roomStorageKey } from "./roomUtils";
 import RealtimeSetupNotice from "./RealtimeSetupNotice";
@@ -153,7 +153,7 @@ export default function GameRoomManager({ user, questions, onGoQuestionBank }) {
         const code = makeRoomCode();
         const result = await runTransaction(ref(adminRealtime, `rooms/${code}`), (current) => (current === null ? {
           code, title: config.title, hostUid: user.uid, status: "waiting", createdAt: serverTimestamp(), joinCounter: 0,
-          config: { categories: config.categories, units: config.units, difficulties: config.difficulties, durationMinutes: config.durationMinutes, teamCount: config.teamCount, questionCountAtCreation: config.questionCount },
+          config: { categories: config.categories, units: config.units, difficulties: config.difficulties, durationMinutes: config.durationMinutes, teamCount: config.teamCount, gourdHpPerMember: clampHpPerMember(config.gourdHpPerMember), questionCountAtCreation: config.questionCount },
         } : undefined), { applyLocally: false });
         if (result.committed) created = code;
       }
@@ -205,7 +205,8 @@ export default function GameRoomManager({ user, questions, onGoQuestionBank }) {
       const minutes = Number(latest.config?.durationMinutes || 10);
       const pool = [...roomPool];
       const playerStates = Object.fromEntries(latestParticipants.map((participant, index) => [participant.id, initialPlayerState(pool[index % pool.length])]));
-      const teamStates = Object.fromEntries(teams.map((team) => [team, createTeamState(grouped[team].length, minutes)]));
+      const hpPerMember = clampHpPerMember(latest.config?.gourdHpPerMember);
+      const teamStates = Object.fromEntries(teams.map((team) => [team, createTeamState(grouped[team].length, hpPerMember)]));
       processed.current.clear();
       teamsMirror.current = null;
       finishing.current = false;

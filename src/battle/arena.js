@@ -2,9 +2,9 @@
 // Feed it team states (setTeams) and volley events (pushEvent) and it animates what happened.
 import { TEAM_IDS, TEAM_META } from "../game/teams.js";
 import { SQUAD_SIZE, UNIT_META, unitLabel } from "../game/rules.js";
-import { drawGourd, drawShard, drawTierMark, drawUnit, SPRITE_H, unitPalette } from "./sprites.js";
+import { drawGourd, drawShard, drawShieldRing, drawTierMark, drawUnit, SPRITE_H, unitPalette } from "./sprites.js";
 import { createParticles } from "./particles.js";
-import { getTintedAsset, getAsset, loadAssets } from "./assets.js";
+import { getTintedAsset, loadAssets } from "./assets.js";
 
 export const ARENA_W = 960;
 export const ARENA_H = 540;
@@ -14,12 +14,20 @@ const SPAWN_DELAY = 0.32;
 const STAGGER = 0.045;
 
 const FLIGHT = { warrior: 0.28, archer: 0.42, mage: 0.36, healer: 0.55, paladin: 0.5 };
-const HIT_STOP = [0, 0.045, 0.085, 0.14];
-const SHAKE = [0, 5, 9, 16];
+const HIT_STOP = [0, 0.06, 0.11, 0.17];
+const SHAKE = [0, 8, 13, 22];
+const HIT_COLORS = { extra: ["#ffffff", "#ffd166", "#ff7b54", "#e0453f"] };
 
 function lerp(a, b, t) { return a + (b - a) * t; }
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 function easeOut(t) { return 1 - (1 - t) ** 3; }
+
+// Mixes a hex color toward white so multiply-tinted grayscale art stays bright.
+function lighten(hex, amount) {
+  const value = parseInt(hex.slice(1), 16);
+  const channel = (shift) => Math.round(((value >> shift) & 255) + (255 - ((value >> shift) & 255)) * amount);
+  return `#${[16, 8, 0].map((shift) => channel(shift).toString(16).padStart(2, "0")).join("")}`;
+}
 
 function stageFor(ratio) {
   if (ratio > 0.66) return 0;
@@ -48,6 +56,8 @@ export function createArena(canvas, options = {}) {
   const floaters = [];
   const schedule = [];
   const shards = [];
+  const rings = [];
+  let slowMo = 0;
 
   loadAssets(() => { assetsReady = true; });
 
@@ -184,6 +194,20 @@ export function createArena(canvas, options = {}) {
     projectiles.push({ kind, tier: Number(unitData.tier) || 1, lane: rivalLane, from, to, t: 0, duration: FLIGHT[unitData.cls] || 0.5, payload, wobble: Math.random() * Math.PI * 2, support: true });
   }
 
+  function ring(x, y, { from = 6, to = 60, life = 0.35, color = "#ffffff", width = 4 }) {
+    rings.push({ x, y, from, to, life, maxLife: life, color, width });
+  }
+
+  // Shared impact cocktail: chunky debris, bright streaking sparks, a shockwave ring.
+  function hitEffects(x, y, power, meta) {
+    const palette = [meta.color, meta.dark, meta.light, ...HIT_COLORS.extra];
+    particles.burst({ x, y, count: 28 + power * 22, speed: 240 + power * 110, colors: palette, size: 4 + power * 1.6, gravity: 650, decay: 1.25 });
+    particles.burst({ x, y, count: 14 + power * 10, speed: 420 + power * 120, colors: ["#ffffff", "#ffd166", "#fff3b0"], size: 2.5 + power * 0.5, gravity: 320, decay: 2.1, streak: 26 + power * 8, shrink: false });
+    particles.burst({ x, y, count: 10 + power * 6, speed: 90, colors: [meta.dark, "#2c2430"], size: 5 + power * 1.5, gravity: 900, decay: 1.1, angle: -Math.PI / 2, spread: Math.PI * 0.9 });
+    ring(x, y, { from: 6, to: 46 + power * 26, life: 0.32 + power * 0.06, color: "#ffffff", width: 4 + power });
+    if (power >= 2) ring(x, y, { from: 4, to: 90 + power * 30, life: 0.45, color: "#ffd166", width: 3 });
+  }
+
   function impact(projectile) {
     const { lane, to, tier, kind, payload } = projectile;
     const meta = lane.meta;
@@ -201,13 +225,12 @@ export function createArena(canvas, options = {}) {
       return;
     }
     const power = tier;
-    const hue = [meta.color, meta.light, "#ffffff", "#ffd166"];
-    particles.burst({ x: to.x, y: to.y, count: 14 + power * 12, speed: 160 + power * 90, colors: hue, size: 3 + power, gravity: 700, decay: 1.5 });
-    particles.burst({ x: to.x, y: to.y, count: 6 + power * 4, speed: 60, colors: ["#fff3b0", "#ffffff"], size: 2, gravity: 0, decay: 2.4 });
-    lane.squashVel -= 2.6 + power * 1.2;
-    lane.ropeVel += (Math.random() - 0.5) * 6;
+    hitEffects(to.x, to.y, power, meta);
+    lane.squashVel -= 3.4 + power * 1.6;
+    lane.ropeVel += (Math.random() - 0.5) * 8;
     lane.hpFlash = 1;
-    if (!reducedMotion) { shake.power = Math.max(shake.power, SHAKE[power] * 0.5); }
+    flash = Math.max(flash, 0.12 + power * 0.08);
+    if (!reducedMotion) { hitStop = Math.max(hitStop, 0.03 + power * 0.015); shake.power = Math.max(shake.power, SHAKE[power] * 0.6); }
     if (payload?.final && payload.event) {
       const event = payload.event;
       lane.hp = clamp(Number(event.hpAfter) || 0, 0, lane.maxHp);
@@ -216,13 +239,14 @@ export function createArena(canvas, options = {}) {
         particles.burst({ x: lane.cx, y: GOURD_Y, count: 30, speed: 200, colors: ["#ffdd66", "#ffffff"], size: 4, gravity: 300, decay: 1.4 });
         floaters.push({ x: lane.cx, y: GOURD_Y - lane.gourdSize / 2 - 26, text: "방어!", color: "#c79a1a", life: 1.1, size: 20 });
       }
-      floaters.push({ x: to.x + (Math.random() - 0.5) * 50, y: to.y - 10, text: `-${event.damage}`, color: event.damage >= 20 ? "#d94a4a" : "#b33a3a", life: 1.2, size: event.damage >= 20 ? 34 : 26, bold: true });
+      floaters.push({ x: to.x + (Math.random() - 0.5) * 50, y: to.y - 10, text: `-${event.damage}`, color: event.damage >= 20 ? "#e0453f" : "#c43b3b", life: 1.3, size: event.damage >= 20 ? 40 : 30, bold: true });
       const unitTier = Number(event.unit?.tier) || 1;
       if (!reducedMotion) {
-        hitStop = Math.max(hitStop, HIT_STOP[Math.min(3, unitTier)] + Math.min(0.08, event.damage / 400));
-        shake.power = Math.max(shake.power, SHAKE[Math.min(3, unitTier)] + Math.min(10, event.damage / 4));
+        hitStop = Math.max(hitStop, HIT_STOP[Math.min(3, unitTier)] + Math.min(0.1, event.damage / 300));
+        shake.power = Math.max(shake.power, SHAKE[Math.min(3, unitTier)] + Math.min(14, event.damage / 3));
       }
-      if (unitTier >= 2) flash = Math.max(flash, unitTier >= 3 ? 0.55 : 0.3);
+      flash = Math.max(flash, unitTier >= 3 ? 0.7 : unitTier === 2 ? 0.45 : 0.25);
+      hitEffects(to.x, to.y, Math.min(3, unitTier + 1), meta);
       lane.caption = { text: `${event.attackerName} · ${unitLabel(event.unit)}${event.streak >= 2 ? ` · ${event.streak}연속` : ""}`, life: 2.2 };
       if (event.burst || lane.hp <= 0) burstGourd(lane, true);
     }
@@ -236,23 +260,42 @@ export function createArena(canvas, options = {}) {
     winnerAt = timeNow;
     const { color, dark, light } = lane.meta;
     if (!animated) return;
-    for (let index = 0; index < 10; index += 1) {
-      const angle = -Math.PI / 2 + (index / 10 - 0.5) * Math.PI * 1.4;
-      shards.push({ x: lane.cx, y: GOURD_Y, vx: Math.cos(angle) * (160 + Math.random() * 160), vy: Math.sin(angle) * (220 + Math.random() * 160), size: 10 + Math.random() * 12, rotation: Math.random() * 6, spin: (Math.random() - 0.5) * 8, color: index % 2 ? color : light, dark, life: 2.4 });
+    const cx = lane.cx, cy = GOURD_Y;
+    const palette = [color, dark, light, "#ffffff", "#ffd166", "#ff7b54", "#e0453f", "#8be78b", "#76a7d5"];
+    for (let index = 0; index < 22; index += 1) {
+      const angle = -Math.PI / 2 + (index / 22 - 0.5) * Math.PI * 1.9;
+      shards.push({ x: cx, y: cy, vx: Math.cos(angle) * (160 + Math.random() * 260), vy: Math.sin(angle) * (260 + Math.random() * 220), size: 9 + Math.random() * 16, rotation: Math.random() * 6, spin: (Math.random() - 0.5) * 10, color: index % 3 === 0 ? light : index % 3 === 1 ? color : dark, dark, life: 3 });
     }
-    particles.burst({ x: lane.cx, y: GOURD_Y, count: 120, speed: 360, colors: [color, light, "#ffffff", "#ffd166", "#ff7b54"], size: 5, gravity: 500, decay: 0.9 });
-    for (let index = 0; index < 90; index += 1) {
-      particles.spawn({ x: lane.cx + (Math.random() - 0.5) * lane.laneWidth, y: -20 - Math.random() * 300, vx: (Math.random() - 0.5) * 40, vy: 60 + Math.random() * 90, color: [color, light, "#ffd166", "#ffffff", "#8be78b"][index % 5], size: 4 + Math.random() * 3, gravity: 20, decay: 0.28, drag: 0.995, shrink: false });
+    // Three layers: a dense core blast, a wide fast ring of debris, and long bright sparks.
+    particles.burst({ x: cx, y: cy, count: 260, speed: 420, colors: palette, size: 6, gravity: 520, decay: 0.75 });
+    particles.burst({ x: cx, y: cy, count: 180, speed: 720, colors: palette, size: 4, gravity: 380, decay: 0.95, drag: 0.985 });
+    particles.burst({ x: cx, y: cy, count: 140, speed: 820, colors: ["#ffffff", "#ffd166", "#fff3b0", light], size: 3, gravity: 240, decay: 1.2, streak: 46, shrink: false });
+    particles.burst({ x: cx, y: cy, count: 60, speed: 140, colors: [dark, "#2c2430", color], size: 9, gravity: 900, decay: 0.8, angle: -Math.PI / 2, spread: Math.PI });
+    ring(cx, cy, { from: 10, to: lane.laneWidth * 1.1, life: 0.7, color: "#ffffff", width: 10 });
+    ring(cx, cy, { from: 10, to: lane.laneWidth * 0.9, life: 0.55, color: "#ffd166", width: 6 });
+    ring(cx, cy, { from: 4, to: lane.laneWidth * 1.4, life: 0.9, color: color, width: 4 });
+    // Confetti keeps falling in waves after the blast.
+    for (let wave = 0; wave < 5; wave += 1) {
+      schedule.push({ at: timeNow + 0.25 + wave * 0.45, run: () => {
+        for (let index = 0; index < 70; index += 1) {
+          particles.spawn({ x: cx + (Math.random() - 0.5) * lane.laneWidth * 1.1, y: -20 - Math.random() * 240, vx: (Math.random() - 0.5) * 60, vy: 70 + Math.random() * 120, color: palette[index % palette.length], size: 5 + Math.random() * 4, gravity: 30, decay: 0.24, drag: 0.995, shrink: false });
+        }
+      } });
     }
-    if (!reducedMotion) { hitStop = Math.max(hitStop, 0.18); shake.power = Math.max(shake.power, 26); }
-    flash = Math.max(flash, 0.8);
+    // Winning squad jumps for joy.
+    for (let hop = 0; hop < 7; hop += 1) {
+      schedule.push({ at: timeNow + 0.4 + hop * 0.42, run: () => lane.units.forEach((unit, index) => { if ((index + hop) % 2 === 0) { unit.y = unit.targetY - 1; unit.hopVel = -190; } }) });
+    }
+    if (!reducedMotion) { hitStop = Math.max(hitStop, 0.24); shake.power = Math.max(shake.power, 40); slowMo = 0.7; }
+    flash = Math.max(flash, 1);
   }
 
   function update(dt) {
     timeNow += dt;
     while (schedule.length && schedule[0].at <= timeNow) schedule.shift().run();
     schedule.sort((a, b) => a.at - b.at);
-    if (hitStop > 0) { hitStop -= dt; particles.update(dt * 0.15); return; }
+    if (hitStop > 0) { hitStop -= dt; particles.update(dt * 0.12); return; }
+    if (slowMo > 0) { slowMo -= dt; dt *= 0.4; }
     for (const lane of lanes) {
       // catch up to authoritative values once animations are quiet
       if (timeNow > lane.lastImpactAt) {
@@ -270,7 +313,7 @@ export function createArena(canvas, options = {}) {
       if (lane.caption) { lane.caption.life -= dt; if (lane.caption.life <= 0) lane.caption = null; }
       for (const unit of lane.units) {
         unit.x = lerp(unit.x, unit.targetX, 1 - Math.exp(-dt * 7));
-        if (unit.y < unit.targetY) { unit.hopVel += 900 * dt; unit.y = Math.min(unit.targetY, unit.y + unit.hopVel * dt); if (unit.y === unit.targetY) unit.hopVel = 0; }
+        if (unit.y < unit.targetY || unit.hopVel < 0) { unit.hopVel += 900 * dt; unit.y = Math.min(unit.targetY, unit.y + unit.hopVel * dt); if (unit.y >= unit.targetY) { unit.y = unit.targetY; unit.hopVel = 0; } }
         else unit.y = unit.targetY;
         unit.attackT = Math.max(0, unit.attackT - dt * 5);
         unit.phase += dt * (2.2 + unit.tier * 0.4);
@@ -289,6 +332,10 @@ export function createArena(canvas, options = {}) {
       s.life -= dt; if (s.life <= 0) { shards.splice(index, 1); continue; }
       s.vy += 700 * dt; s.x += s.vx * dt; s.y += s.vy * dt; s.rotation += s.spin * dt;
       if (s.y > GROUND_Y) { s.y = GROUND_Y; s.vy *= -0.35; s.vx *= 0.6; s.spin *= 0.5; }
+    }
+    for (let index = rings.length - 1; index >= 0; index -= 1) {
+      rings[index].life -= dt;
+      if (rings[index].life <= 0) rings.splice(index, 1);
     }
     for (let index = floaters.length - 1; index >= 0; index -= 1) {
       const f = floaters[index];
@@ -314,9 +361,11 @@ export function createArena(canvas, options = {}) {
     const sky = ctx.createLinearGradient(0, 0, 0, ARENA_H);
     sky.addColorStop(0, "#fff7e8"); sky.addColorStop(0.7, "#f6ebd6"); sky.addColorStop(1, "#e8dcc1");
     ctx.fillStyle = sky; ctx.fillRect(0, 0, ARENA_W, ARENA_H);
-    const ground = getAsset("ground");
-    if (ground) ctx.drawImage(ground, 0, GROUND_Y - 6, ARENA_W, ARENA_H - GROUND_Y + 6);
-    else {
+    const ground = getTintedAsset("ground", "#d8c49a");
+    if (ground) {
+      const tileH = ARENA_H - GROUND_Y + 10, tileW = Math.round(tileH * (ground.width / ground.height));
+      for (let x = 0; x < ARENA_W; x += tileW) ctx.drawImage(ground, x, GROUND_Y - 10, tileW, tileH);
+    } else {
       ctx.fillStyle = "#cfc39f"; ctx.fillRect(0, GROUND_Y - 4, ARENA_W, 4);
       ctx.fillStyle = "#b9ad87"; ctx.fillRect(0, GROUND_Y, ARENA_W, ARENA_H - GROUND_Y);
       ctx.fillStyle = "#a89c78";
@@ -333,10 +382,12 @@ export function createArena(canvas, options = {}) {
     const { cx, meta, gourdSize } = lane;
     const ratio = lane.hp / lane.maxHp;
     // pole and rope
-    const pole = getAsset("pole");
+    const pole = getTintedAsset("pole", "#c9a27a");
     const poleX = Math.round(cx);
-    if (pole) ctx.drawImage(pole, poleX - pole.naturalWidth / 2, 40, pole.naturalWidth, GROUND_Y - 40);
-    else {
+    if (pole) {
+      const h = GROUND_Y - 34, w = Math.round(h * (pole.width / pole.height));
+      ctx.drawImage(pole, poleX - w / 2, 34, w, h);
+    } else {
       ctx.fillStyle = "#8a6a4a"; ctx.fillRect(poleX - 3, 40, 6, GROUND_Y - 40);
       ctx.fillStyle = "#6b4f33"; ctx.fillRect(poleX - 22, 40, 44, 6);
     }
@@ -349,12 +400,12 @@ export function createArena(canvas, options = {}) {
     ctx.fillText(`${lane.id} · ${meta.short}`, cx, 28);
     if (!lane.burst) {
       const stage = stageFor(ratio);
-      const asset = getTintedAsset(`gourd-${stage + 1}`, meta.color);
+      const asset = getTintedAsset(`gourd-${stage + 1}`, lighten(meta.color, 0.22));
       if (asset) {
         const w = gourdSize * 1.15, h = w * (asset.height / asset.width);
         ctx.save(); ctx.translate(gx, gy); ctx.scale(1 / lane.squash, lane.squash);
         ctx.drawImage(asset, -w / 2, -h / 2, w, h); ctx.restore();
-        if (lane.shield > 0) drawGourd(ctx, { x: gx, y: gy, size: 0, color: meta.color, dark: meta.dark, light: meta.light, shield: lane.shield, squash: 1 });
+        if (lane.shield > 0) drawShieldRing(ctx, gx, gy, gourdSize / 2 + 10);
       } else {
         drawGourd(ctx, { x: gx, y: gy, size: gourdSize, color: meta.color, dark: meta.dark, light: meta.light, stage, shield: lane.shield, squash: lane.squash });
       }
@@ -435,19 +486,23 @@ export function createArena(canvas, options = {}) {
     const height = easeOut(t) * 150;
     const width = Math.min(lane.laneWidth - 30, 220);
     const x = Math.round(lane.cx - width / 2), y = GOURD_Y - 40;
-    const banner = getAsset("banner");
-    if (banner) ctx.drawImage(banner, x, y, width, height * 1.1);
-    else {
+    const banner = getTintedAsset("banner", "#fff6e4");
+    if (banner) {
+      const fullH = width * (banner.height / banner.width);
+      ctx.save(); ctx.beginPath(); ctx.rect(x - 20, y - 10, width + 40, 10 + fullH * easeOut(t)); ctx.clip();
+      ctx.drawImage(banner, x, y, width, fullH); ctx.restore();
+    } else {
       ctx.fillStyle = "#fff8e6"; ctx.fillRect(x, y, width, height);
       ctx.fillStyle = lane.meta.color; ctx.fillRect(x, y, width, 8); ctx.fillRect(x, y + height - 8, width, 8);
       ctx.fillStyle = "#2c2430"; ctx.fillRect(x - 4, y, 4, height); ctx.fillRect(x + width, y, 4, height);
     }
     if (t > 0.6) {
+      const clothH = banner ? width * (banner.height / banner.width) : height;
       ctx.textAlign = "center";
       ctx.fillStyle = lane.meta.dark; ctx.font = `900 ${Math.round(Math.min(64, width / 3.4))}px 'Pretendard', sans-serif`;
-      ctx.fillText("WIN", lane.cx, y + height * 0.55);
+      ctx.fillText("WIN", lane.cx, y + clothH * 0.56);
       ctx.fillStyle = "#2c2430"; ctx.font = "900 16px 'Pretendard', sans-serif";
-      ctx.fillText(`${lane.meta.label} 승리!`, lane.cx, y + height * 0.85);
+      ctx.fillText(`${lane.meta.label} 승리!`, lane.cx, y + clothH * 0.76);
     }
   }
 
@@ -462,6 +517,16 @@ export function createArena(canvas, options = {}) {
     lanes.forEach(drawLane);
     projectiles.forEach(drawProjectile);
     shards.forEach((s) => drawShard(ctx, s));
+    for (const r of rings) {
+      const t = 1 - r.life / r.maxLife;
+      const radius = r.from + (r.to - r.from) * easeOut(t);
+      ctx.globalAlpha = (1 - t) * 0.95;
+      ctx.strokeStyle = "#2c2430"; ctx.lineWidth = r.width + 2;
+      ctx.beginPath(); ctx.arc(r.x, r.y, radius, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = r.color; ctx.lineWidth = r.width;
+      ctx.beginPath(); ctx.arc(r.x, r.y, radius, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
     particles.draw(ctx);
     ctx.textAlign = "center";
     for (const f of floaters) {
@@ -473,7 +538,7 @@ export function createArena(canvas, options = {}) {
     ctx.globalAlpha = 1;
     drawBanner();
     ctx.restore();
-    if (flash > 0) { ctx.fillStyle = `rgba(255, 240, 200, ${flash * 0.5})`; ctx.fillRect(0, 0, ARENA_W, ARENA_H); }
+    if (flash > 0) { ctx.fillStyle = `rgba(255, 236, 190, ${Math.min(0.75, flash * 0.6)})`; ctx.fillRect(0, 0, ARENA_W, ARENA_H); }
   }
 
   function loop(timestamp) {
@@ -500,6 +565,6 @@ export function createArena(canvas, options = {}) {
     },
     start() { if (running) return; running = true; last = 0; frame = requestAnimationFrame(loop); },
     stop() { running = false; cancelAnimationFrame(frame); },
-    destroy() { this.stop(); particles.clear(); projectiles.length = 0; schedule.length = 0; floaters.length = 0; shards.length = 0; lanes = []; laneById = new Map(); },
+    destroy() { this.stop(); particles.clear(); projectiles.length = 0; schedule.length = 0; floaters.length = 0; shards.length = 0; rings.length = 0; lanes = []; laneById = new Map(); },
   };
 }

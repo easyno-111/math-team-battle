@@ -1,6 +1,6 @@
 const ROOM_STORAGE_PREFIX = "math-team-battle-active-room:";
 export const ROOM_STATUSES = ["waiting", "locked", "starting", "playing", "finished"];
-export const DURATION_OPTIONS = [5, 7, 10, 15];
+export const DURATION_OPTIONS = [3, 5, 7, 10, 15];
 export const EVENT_HISTORY = 30;
 
 export function roomStorageKey(uid) {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { configuredTeams, TEAM_META } from "../game/teams";
 import { BASE_DAMAGE, createTeamState, resolveVolley, summonUnit } from "../game/rules";
-import BattleArena from "./BattleArena";
+import BattleArena from "../battle/BattleArena";
 import "../styles/base.css";
 
 const NAMES = ["민수", "서연", "지호", "하린", "도윤", "예린", "시우", "유나"];
@@ -12,14 +12,14 @@ export default function ArenaPreview() {
   const [teamCount, setTeamCount] = useState(2);
   const [auto, setAuto] = useState(true);
   const teamIds = useMemo(() => configuredTeams(teamCount), [teamCount]);
-  const [teams, setTeams] = useState(() => Object.fromEntries(configuredTeams(2).map((id) => [id, createTeamState(5, 3)])));
+  const [teams, setTeams] = useState(() => Object.fromEntries(configuredTeams(2).map((id) => [id, createTeamState(5, 60)])));
   const [events, setEvents] = useState({});
   const [matchId, setMatchId] = useState(1);
   const streaks = useRef({});
 
   const reset = (count = teamCount) => {
     const ids = configuredTeams(count);
-    setTeams(Object.fromEntries(ids.map((id) => [id, createTeamState(5, 3)])));
+    setTeams(Object.fromEntries(ids.map((id) => [id, createTeamState(5, 60)])));
     setEvents({});
     streaks.current = {};
     setMatchId((value) => value + 1);

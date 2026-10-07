@@ -342,3 +342,8 @@ body { overflow-x: hidden; overflow-y: auto; }
 .rank-1 .team-rank-number { color:#aa771c; }
 .rank-2 .team-rank-number { color:#877d9d; }
 .rank-3 .team-rank-number { color:#b37d62; }
+
+/* 화면 미리보기(?mode=preview) 전용 */
+.preview-nav { position: sticky; top: 0; z-index: 50; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 12px; background: #2c2430; color: #ddd; font-size: 12px; }
+.preview-nav button { padding: 5px 10px; border: 1px solid #665; border-radius: 8px; background: #3a3140; color: #fff; font-size: 12px; }
+.preview-nav button[aria-pressed="true"] { background: #9184c5; border-color: #9184c5; }

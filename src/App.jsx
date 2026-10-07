@@ -7,7 +7,7 @@ import GameRoomManager from "./room/GameRoomManager";
 import StudentLobby from "./components/StudentLobby";
 import QuizHost, { QuizStudent } from "./quiz/Live";
 import QuestionBankPage from "./questions/QuestionBankPage";
-import ArenaPreview from "./battle/ArenaPreview";
+import ScreenPreview from "./preview/ScreenPreview";
 import "./styles/base.css";
 import "./styles/questions.css";
 import "./styles/room.css";
@@ -112,7 +112,7 @@ export default function App() {
     }
   };
 
-  if (route.preview) return <ArenaPreview />;
+  if (route.preview) return <ScreenPreview />;
   if (route.studentMode) {
     return route.quizStudent
       ? <QuizStudent initialCode={route.quizCode} version={VERSION} />

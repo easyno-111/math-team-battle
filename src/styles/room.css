@@ -271,178 +271,6 @@
   color: #827b8b;
 }
 
-.teacher-lobby {
-  position: relative;
-  z-index: 1;
-  width: min(1440px, 100%);
-  min-height: min(820px, calc(100vh - 170px));
-  margin: 0 auto;
-  overflow: hidden;
-  border: 1px solid #ded8e6;
-  border-radius: 31px;
-  background-position: center;
-  background-size: cover;
-  box-shadow: 0 24px 60px rgba(64, 57, 76, 0.14);
-}
-
-.lobby-vignette {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(63,55,74,0.06) 100%),
-    radial-gradient(circle at center, transparent 48%, rgba(65,57,78,0.08) 100%);
-  pointer-events: none;
-}
-
-.teacher-lobby-topbar {
-  position: relative;
-  z-index: 3;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  gap: 14px;
-  align-items: start;
-  padding: 22px;
-}
-
-.lobby-title-card, .lobby-room-code-card, .lobby-online-card {
-  border: 2px solid rgba(255,255,255,0.74);
-  background: rgba(255, 251, 247, 0.91);
-  box-shadow: 0 8px 22px rgba(68, 59, 79, 0.12);
-  backdrop-filter: blur(8px);
-}
-
-.lobby-title-card, .lobby-online-card { min-height: 76px; padding: 14px 17px; border-radius: 20px; }
-.lobby-title-card { justify-self: start; }
-.lobby-title-card span, .lobby-online-card span, .lobby-room-code-card span {
-  display: block;
-  color: #9b90a2;
-  font-size: 10px;
-  font-weight: 900;
-}
-
-.lobby-title-card strong {
-  display: block;
-  margin-top: 5px;
-  color: #665e70;
-  font-size: 17px;
-}
-
-.lobby-room-code-card {
-  min-width: 190px;
-  padding: 13px 19px 12px;
-  border-radius: 22px;
-  text-align: center;
-}
-
-.lobby-room-code-card strong {
-  display: block;
-  margin: 2px 0 4px;
-  color: #5d5567;
-  font-size: 32px;
-  letter-spacing: 0.15em;
-}
-
-.lobby-room-code-card button {
-  border: 0;
-  background: transparent;
-  color: #8577a7;
-  font-size: 10px;
-  font-weight: 900;
-}
-
-.lobby-online-card { justify-self: end; text-align: right; }
-.lobby-online-card strong {
-  display: block;
-  margin-top: 4px;
-  color: #5f7f70;
-  font-size: 20px;
-}
-
-.lobby-online-card small { color: #a097a4; font-size: 10px; }
-.teacher-team-grid {
-  position: relative;
-  z-index: 2;
-  min-height: 450px;
-  display: grid;
-  grid-template-columns: minmax(230px, 0.92fr) minmax(180px, 0.72fr) minmax(230px, 0.92fr);
-  gap: 20px;
-  align-items: center;
-  padding: 30px 34px 120px;
-}
-
-.teacher-team-panel {
-  align-self: stretch;
-  max-height: 410px;
-  overflow: hidden;
-  border: 2px solid rgba(255,255,255,0.72);
-  border-radius: 24px;
-  box-shadow: 0 12px 32px rgba(62, 54, 75, 0.12);
-  backdrop-filter: blur(8px);
-}
-
-.teacher-team-panel.team-a { background: rgba(238, 231, 255, 0.88); }
-.teacher-team-panel.team-b { background: rgba(226, 247, 238, 0.88); }
-.teacher-team-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 17px 18px;
-  border-bottom: 1px solid rgba(125, 111, 146, 0.1);
-}
-
-.teacher-team-heading span, .teacher-team-heading strong { display: block; }
-.teacher-team-heading span {
-  color: #a196aa;
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-}
-
-.teacher-team-heading strong { margin-top: 3px; color: #655d70; font-size: 17px; }
-.teacher-team-heading b {
-  min-width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 14px;
-  background: rgba(255,255,255,0.7);
-  color: #6e6578;
-}
-
-.lobby-center-spacer { display: flex; align-items: center; justify-content: center; }
-.rope-status-card {
-  width: 118px;
-  height: 118px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  border: 3px solid rgba(255,255,255,0.75);
-  border-radius: 40px;
-  background: rgba(255, 247, 239, 0.86);
-  box-shadow: 0 14px 32px rgba(75, 61, 69, 0.13);
-  transform: rotate(-2deg);
-}
-
-.rope-status-card span, .rope-status-card small { color: #9b8f96; font-size: 9px; font-weight: 900; }
-.rope-status-card strong { margin: 3px 0; color: #705f74; font-size: 30px; }
-.teacher-lobby-controls {
-  position: absolute;
-  z-index: 5;
-  left: 20px;
-  right: 20px;
-  bottom: 18px;
-  display: grid;
-  gap: 9px;
-  padding: 13px;
-  border: 2px solid rgba(255,255,255,0.74);
-  border-radius: 21px;
-  background: rgba(255, 251, 247, 0.92);
-  box-shadow: 0 12px 30px rgba(68, 57, 78, 0.14);
-  backdrop-filter: blur(9px);
-}
-
 .room-config-summary, .lobby-action-row {
   display: flex;
   align-items: center;
@@ -459,97 +287,15 @@
   font-weight: 850;
 }
 
-.lobby-action-row { justify-content: center; }
-.lobby-soft-button, .lobby-start-button, .lobby-danger-button, .close-room-confirm button {
-  min-height: 42px;
-  padding: 0 15px;
-  border-radius: 13px;
-  font-size: 11px;
-  font-weight: 900;
-}
-
-.lobby-soft-button { border: 1px solid #e6dfeb; background: #fff; color: #736c7d; }
-.lobby-start-button {
-  border: 0;
-  background: #a392ca;
-  color: white;
-  opacity: 1;
-  cursor: pointer;
-  box-shadow: 0 7px 16px rgba(143, 124, 184, 0.2);
-  transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
-}
-
-.lobby-start-button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 9px 20px rgba(143, 124, 184, 0.27); }
-.lobby-start-button:active:not(:disabled) { transform: translateY(0); }
-.lobby-start-button:disabled { opacity: 0.46; cursor: not-allowed; box-shadow: none; }
-.lobby-danger-button { border: 1px solid #f0dadd; background: #fff5f6; color: #b36d75; }
-.close-room-confirm {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 5px 4px 11px;
-  border-radius: 14px;
-  background: #fff3f4;
-  color: #9d6970;
-  font-size: 10px;
-  font-weight: 850;
-}
-
-.close-room-confirm button {
-  min-height: 34px;
-  border: 0;
-  background: #fff;
-  color: #8d7e85;
-}
-
-.close-room-confirm button:last-child { background: #c77e86; color: #fff; }
-.lobby-toast {
-  justify-self: center;
-  padding: 8px 12px;
-  border-radius: 12px;
-  background: #f0ecff;
-  color: #7567a5;
-  font-size: 10px;
-  font-weight: 850;
-}
-
-.join-url-hint {
-  overflow: hidden;
-  color: #aaa2ab;
-  font-size: 8px;
-  text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 @media (max-width: 1100px) {
   .room-setup-shell { grid-template-columns: 1fr; }
   .room-preview-card { min-height: 560px; }
-  .teacher-team-grid { grid-template-columns: minmax(210px, 1fr) 100px minmax(210px, 1fr); padding-left: 20px; padding-right: 20px; }
 }
 
 @media (max-width: 760px) {
   .room-setup-card { min-height: 0; padding: 22px; }
   .room-preview-card { min-height: 470px; }
-  .teacher-lobby { min-height: 840px; background-position: center; }
-  .teacher-lobby-topbar { grid-template-columns: 1fr auto; }
-  .lobby-title-card { display: none; }
-  .lobby-room-code-card { justify-self: start; }
-  .teacher-team-grid { grid-template-columns: 1fr 1fr; gap: 10px; padding: 95px 12px 210px; }
-  .lobby-center-spacer {
-    position: absolute;
-    left: 50%;
-    bottom: 125px;
-    transform: translateX(-50%);
-  }
-
-  .teacher-team-panel { max-height: 350px; }
-  .teacher-team-heading { padding: 13px; }
-  .teacher-team-heading strong { font-size: 14px; }
-  .teacher-lobby-controls { left: 10px; right: 10px; bottom: 10px; }
   .room-config-summary { justify-content: center; }
-  .lobby-action-row { display: grid; grid-template-columns: 1fr 1fr; }
-  .close-room-confirm { grid-column: 1 / -1; justify-content: center; }
 }
 
 @media (max-width: 480px) {
@@ -565,49 +311,6 @@
 
   .room-preview-card { min-height: 400px; }
   .preview-team { top: 38%; min-width: 65px; padding: 9px 11px; }
-  .teacher-lobby { min-height: 780px; }
-  .teacher-lobby-topbar { padding: 10px; }
-  .lobby-room-code-card { min-width: 154px; }
-  .lobby-room-code-card strong { font-size: 26px; }
-  .lobby-online-card { padding: 10px 12px; }
-  .teacher-team-grid { padding-top: 76px; padding-bottom: 210px; }
-  .teacher-team-heading b { width: 32px; min-width: 32px; height: 32px; }
-  .lobby-action-row { grid-template-columns: 1fr; }
-  .close-room-confirm { grid-column: auto; flex-wrap: wrap; }
-  .join-url-hint { display: none; }
-}
-
-.teacher-team-grid-with-qr { grid-template-columns: minmax(250px, 1fr) minmax(210px, 0.58fr) minmax(250px, 1fr); }
-.qr-center-column { gap: 12px; }
-.room-qr-card {
-  width: min(210px, 100%);
-  margin: 0 auto;
-  padding: 13px;
-  border: 2px solid rgba(255, 255, 255, 0.72);
-  border-radius: 22px;
-  background: rgba(255, 250, 244, 0.93);
-  box-shadow: 0 12px 32px rgba(88, 72, 96, 0.16);
-  backdrop-filter: blur(8px);
-}
-
-.room-qr-image-button {
-  width: 100%;
-  aspect-ratio: 1;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border: 0;
-  border-radius: 15px;
-  overflow: hidden;
-  background: #fffaf4;
-}
-
-.room-qr-image-button img {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: contain;
-  image-rendering: auto;
 }
 
 .qr-loading-placeholder {
@@ -621,11 +324,6 @@
   background: repeating-linear-gradient(45deg, #fffaf4, #fffaf4 8px, #f4edf7 8px, #f4edf7 16px);
 }
 
-.room-qr-copy { padding: 10px 4px 0; text-align: center; }
-.room-qr-copy span, .room-qr-copy strong, .room-qr-copy small { display: block; }
-.room-qr-copy span { color: #90859c; font-size: 11px; font-weight: 800; }
-.room-qr-copy strong { margin-top: 3px; color: #554c61; font-size: 13px; }
-.room-qr-copy small { margin-top: 5px; color: #c56e72; }
 .qr-fullscreen-backdrop {
   position: fixed;
   inset: 0;
@@ -667,19 +365,6 @@
   font-weight: 850;
 }
 
-.local-qr-warning {
-  max-width: 900px;
-  margin: 8px auto 14px;
-  padding: 11px 15px;
-  border: 1px solid #f0d5ad;
-  border-radius: 14px;
-  background: rgba(255, 244, 219, 0.92);
-  color: #8b704f;
-  font-size: 12px;
-  line-height: 1.55;
-  text-align: center;
-}
-
 .teacher-match-shell, .student-match-shell {
   position: relative;
   min-height: calc(100vh - 150px);
@@ -697,40 +382,6 @@
   pointer-events: none;
 }
 
-.teacher-match-scoreboard {
-  position: relative;
-  z-index: 2;
-  width: min(940px, calc(100% - 40px));
-  margin: 22px auto 0;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: stretch;
-  border: 4px solid rgba(255,255,255,0.8);
-  border-radius: 24px;
-  overflow: hidden;
-  background: rgba(255, 250, 244, 0.93);
-  box-shadow: 0 14px 38px rgba(68, 54, 74, 0.18);
-}
-
-.match-score, .match-center-info {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 12px 20px;
-}
-
-.match-score span { font-size: 13px; font-weight: 850; }
-.match-score strong { font-size: clamp(28px, 4vw, 44px); }
-.match-center-info {
-  min-width: 210px;
-  flex-direction: column;
-  gap: 1px;
-  color: #5c5363;
-}
-
-.match-center-info > span, .match-center-info > small { color: #94899d; font-size: 10px; font-weight: 800; }
-.match-center-info > strong { font-variant-numeric: tabular-nums; font-size: 32px; letter-spacing: 0.05em; }
 .match-team-list {
   max-height: 55vh;
   padding: 16px;
@@ -784,27 +435,6 @@
 .match-student-stats b, .match-student-stats small { display: block; }
 .match-student-stats b { color: #62566f; font-size: 11px; }
 .match-student-stats small { color: #9d92a2; font-size: 9px; }
-.teacher-match-controls {
-  position: absolute;
-  z-index: 4;
-  left: 50%;
-  bottom: 22px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  transform: translateX(-50%);
-}
-
-.match-finish-button, .match-close-button {
-  padding: 12px 18px;
-  border: 2px solid rgba(255,255,255,0.8);
-  border-radius: 14px;
-  box-shadow: 0 8px 22px rgba(70, 55, 74, 0.14);
-  font-weight: 850;
-}
-
-.match-finish-button { background: #fff4d9; color: #8b7047; }
-.match-close-button { background: #fff1f0; color: #9a6264; }
 .match-result-banner {
   position: absolute;
   z-index: 5;
@@ -824,39 +454,7 @@
 .match-result-banner span { color: #9d91a5; font-size: 11px; font-weight: 850; }
 .match-result-banner strong { color: #5a5062; font-size: 28px; }
 .match-result-banner p { color: #897e90; font-size: 18px; font-weight: 800; }
-@media (max-width: 980px) {
-  .teacher-team-grid-with-qr { grid-template-columns: 1fr 180px 1fr; }
-}
-
-@media (max-width: 720px) {
-  .teacher-team-grid-with-qr { grid-template-columns: 1fr; }
-  .qr-center-column { order: -1; }
-  .room-qr-card { width: 180px; }
-  .teacher-match-scoreboard { width: calc(100% - 20px); grid-template-columns: 1fr 120px 1fr; }
-  .match-score, .match-center-info { padding: 9px 7px; }
-  .match-score { flex-direction: column; gap: 0; }
-  .match-center-info { min-width: 0; }
-  .match-center-info > strong { font-size: 22px; }
-  .teacher-match-controls { width: calc(100% - 24px); justify-content: center; flex-wrap: wrap; }
-}
-
-.match-roster-grid {
-  position: relative;
-  z-index: 4;
-  width: min(1460px, calc(100% - 36px));
-  margin: 14px auto 0;
-  display: grid;
-  grid-template-columns: minmax(190px, 0.9fr) minmax(250px, 1.2fr) minmax(190px, 0.9fr);
-  gap: 14px;
-  align-items: stretch;
-}
-
-@media (max-width: 1120px) {
-  .match-roster-grid { grid-template-columns: 1fr 1fr; }
-}
-
 @media (max-width: 760px) {
-  .match-roster-grid { width: calc(100% - 16px); grid-template-columns: 1fr; }
   .match-team-list { max-height: 190px; overflow: auto; }
 }
 
@@ -880,39 +478,6 @@
 .team-count-row button.selected { border-color: #bca9d8; background: #f3ecfb; box-shadow: 0 6px 18px rgba(122, 91, 155, 0.12); }
 .preview-team-c { left: 23%; top: 64%; background: #f4b89c; }
 .preview-team-d { right: 23%; top: 64%; background: #a8caef; }
-.teacher-team-grid-with-qr { grid-template-columns: minmax(0, 1fr) 250px; align-items: start; }
-.teacher-team-panels-wrap {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  min-width: 0;
-}
-
-.teacher-team-grid-with-qr.team-count-2 .teacher-team-panels-wrap { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.teacher-team-panel.team-c { border-color: rgba(230, 153, 116, 0.5); background: rgba(255, 242, 234, 0.92); }
-.teacher-team-panel.team-d { border-color: rgba(110, 164, 219, 0.5); background: rgba(238, 247, 255, 0.92); }
-.teacher-team-panel.team-c .teacher-team-heading b { background: #e8a17e; }
-.teacher-team-panel.team-d .teacher-team-heading b { background: #7ba9d8; }
-.participant-chip-main {
-  min-width: 0;
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.participant-team-select {
-  flex: 0 0 auto;
-  min-height: 30px;
-  padding: 4px 25px 4px 8px;
-  border: 1px solid rgba(119, 107, 132, 0.2);
-  border-radius: 9px;
-  background: rgba(255,255,255,0.82);
-  color: #6e6476;
-  font-size: 11px;
-  font-weight: 700;
-}
-
 .match-team-c { background: rgba(255,241,232,0.92); }
 .match-team-d { background: rgba(237,247,255,0.92); }
 .tournament-tie-actions {
@@ -935,116 +500,8 @@
   font-weight: 800;
 }
 
-@media (max-width: 1100px) {
-  .teacher-team-grid-with-qr { grid-template-columns: 1fr; }
-  .qr-center-column { max-width: 360px; width: 100%; margin: 0 auto; }
-}
-
 @media (max-width: 720px) {
   .team-count-row { grid-template-columns: 1fr; }
-  .teacher-team-panels-wrap { grid-template-columns: 1fr; }
-  .teacher-team-grid-with-qr.team-count-2 .teacher-team-panels-wrap { grid-template-columns: 1fr; }
-  .participant-team-select { max-width: 76px; }
-}
-
-.match-score.is-scoring { animation: matchScorePunchV080 .62s cubic-bezier(.16,.84,.2,1) both; }
-@media (prefers-reduced-motion: reduce) {
-  .match-score.is-scoring { animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
-}
-
-.teacher-lobby {
-  height:clamp(580px,calc(100dvh - 155px),850px);
-  min-height:0;
-  display:flex;
-  flex-direction:column;
-}
-
-.teacher-lobby-topbar { flex:none; }
-.teacher-lobby .teacher-team-grid-with-qr {
-  flex:1;
-  min-height:0;
-  padding:12px 20px;
-  gap:14px;
-  align-items:stretch;
-  overflow:hidden;
-}
-
-.teacher-lobby .teacher-team-panels-wrap { min-height:0; grid-auto-rows:minmax(0,1fr); }
-.teacher-lobby .teacher-team-panel {
-  min-height:0;
-  max-height:none;
-  display:flex;
-  flex-direction:column;
-}
-
-.teacher-lobby .teacher-team-heading { flex:none; padding:10px 14px; }
-.teacher-lobby .teacher-team-heading strong { font-size:14px; }
-.teacher-lobby .teacher-team-heading b {
-  width:auto;
-  min-width:45px;
-  height:34px;
-  font-size:17px;
-  padding:0 6px;
-}
-
-.teacher-lobby .teacher-participant-list {
-  flex:1;
-  min-height:0;
-  height:auto;
-  max-height:none;
-  overflow:auto;
-  overscroll-behavior:contain;
-  display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  align-content:start;
-  gap:5px;
-  padding:7px 10px 12px;
-  scrollbar-gutter:stable;
-}
-
-.teacher-lobby .participant-chip {
-  display:flex;
-  min-width:0;
-  min-height:40px;
-  margin:0;
-  padding:5px 7px;
-  gap:5px;
-  border-radius:9px;
-}
-
-.teacher-lobby .participant-chip-main { min-width:0; flex:1; }
-.teacher-lobby .participant-chip-main strong {
-  display:block;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-  font-size:12px;
-}
-
-.teacher-lobby .participant-chip-main small { font-size:9px; }
-.teacher-lobby .participant-team-select {
-  width:45px;
-  min-width:45px;
-  padding:4px 0;
-  font-size:10px;
-}
-
-.teacher-lobby .team-empty-slot { grid-column:1/-1; min-height:65px; }
-.teacher-lobby .teacher-lobby-controls {
-  position:relative;
-  inset:auto;
-  flex:none;
-  padding:10px 20px 14px;
-  margin:0;
-}
-
-.teacher-lobby .qr-center-column { min-height:0; overflow:auto; justify-content:flex-start; }
-.teacher-lobby .rope-status-card {
-  flex:none;
-  width:100%;
-  height:65px;
-  border-radius:14px;
-  transform:none;
 }
 
 .team-rank-guide { color:#8d8099; font-size:10px; padding:0 12px 7px; }
@@ -1064,45 +521,189 @@
   text-overflow:ellipsis;
 }
 
-@media(max-width:1100px) {
-  .teacher-lobby .teacher-team-grid-with-qr { grid-template-columns:minmax(0,1fr) 160px; }
-  .teacher-lobby .teacher-participant-list { grid-template-columns:1fr; }
-  .teacher-lobby .teacher-team-panels-wrap { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.tournament-tie-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+  margin: 10px 0;
 }
 
-@media(max-width:700px) {
-  .teacher-lobby { height:auto; min-height:0; }
-  .teacher-lobby .teacher-team-grid-with-qr { flex:none; grid-template-columns:1fr; overflow:visible; }
-  .teacher-lobby .teacher-team-panels-wrap, .teacher-lobby .teacher-team-grid-with-qr.team-count-2 .teacher-team-panels-wrap { grid-template-columns:repeat(2,minmax(0,1fr)); grid-auto-rows:240px; }
-  .teacher-lobby .teacher-team-heading { padding:8px; }
-  .teacher-lobby .teacher-team-heading strong { font-size:11px; }
-  .teacher-lobby .teacher-team-heading b { min-width:32px; font-size:13px; }
-  .teacher-lobby .qr-center-column { max-height:210px; }
-  .teacher-lobby .teacher-participant-list { padding:5px; }
+.tournament-tie-actions small { width: 100%; color: #7a6f80; font-weight: 700; }
+.tournament-tie-actions button {
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 12px;
+  background: #9184c5;
+  color: #fff;
+  font-weight: 800;
 }
 
 
-/* 박 터뜨리기 경기 화면 추가 요소 */
-.teacher-match-scoreboard { flex-wrap: wrap; }
-.match-score { min-width: 150px; }
-.match-score.is-winner { box-shadow: 0 0 0 3px #ffd166, 0 10px 28px rgba(120, 90, 20, 0.2); }
-.match-score-bar { width: 100%; height: 8px; margin-top: 6px; border-radius: 999px; background: #e9e2ea; overflow: hidden; }
+/* ===== 교사 대기실 ===== */
+.teacher-lobby {
+  position: relative;
+  min-height: calc(100vh - 150px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px 22px;
+  border-radius: 28px;
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+  isolation: isolate;
+}
+.lobby-vignette { position: absolute; inset: 0; z-index: 0; background: linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.55) 70%, rgba(255,255,255,0.8)); pointer-events: none; }
+.teacher-lobby > * { position: relative; z-index: 1; }
+.teacher-lobby-topbar { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 14px; align-items: stretch; }
+.lobby-title-card, .lobby-room-code-card, .lobby-online-card {
+  display: flex; flex-direction: column; justify-content: center; gap: 2px;
+  padding: 14px 18px; border: 1px solid rgba(255,255,255,0.9); border-radius: 20px;
+  background: rgba(255, 252, 247, 0.92); box-shadow: 0 10px 26px rgba(80, 60, 90, 0.12);
+}
+.lobby-title-card { justify-self: start; min-width: 200px; }
+.lobby-online-card { justify-self: end; text-align: right; min-width: 150px; }
+.lobby-title-card span, .lobby-online-card span, .lobby-room-code-card > span { color: #9a8fa3; font-size: 11px; font-weight: 900; letter-spacing: 0.08em; }
+.lobby-title-card strong { color: #5a5063; font-size: 20px; }
+.lobby-online-card strong { color: #5f9a7c; font-size: 26px; }
+.lobby-online-card small { color: #a097a4; font-size: 11px; }
+.lobby-room-code-card { align-items: center; padding: 12px 26px; text-align: center; }
+.lobby-room-code-card strong { color: #4f465b; font-size: clamp(36px, 5vw, 52px); letter-spacing: 0.22em; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.lobby-room-code-card small { color: #9a8fa3; font-size: 11px; font-weight: 800; }
+
+.lobby-join-link {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 8px; align-items: center;
+  padding: 10px 12px; border: 1px solid rgba(255,255,255,0.9); border-radius: 16px;
+  background: rgba(255, 252, 247, 0.92); box-shadow: 0 8px 22px rgba(80, 60, 90, 0.1);
+}
+.lobby-join-link > span { color: #8c82a2; font-size: 12px; font-weight: 900; white-space: nowrap; }
+.lobby-join-link input { min-height: 40px; padding: 8px 12px; border-radius: 12px; font-size: 13px; font-weight: 700; color: #4f465b; background: #fff; }
+.lobby-join-link button { min-height: 40px; padding: 0 14px; border: 1px solid #e2ddea; border-radius: 12px; background: #fff; color: #5f5a70; font-weight: 800; white-space: nowrap; }
+.lobby-join-link button.primary { border-color: #9184c5; background: #9184c5; color: #fff; }
+.lobby-join-link button:hover { filter: brightness(0.97); }
+
+.teacher-team-grid { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 14px; align-items: start; }
+.teacher-team-panels-wrap { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.teacher-team-panel {
+  display: flex; flex-direction: column; min-height: 230px; max-height: 420px;
+  border: 1px solid rgba(255,255,255,0.9); border-radius: 22px; overflow: hidden;
+  background: rgba(255, 252, 247, 0.9); box-shadow: 0 10px 26px rgba(80, 60, 90, 0.1);
+}
+.teacher-team-panel.team-a { background: rgba(240, 234, 255, 0.9); }
+.teacher-team-panel.team-b { background: rgba(228, 247, 239, 0.9); }
+.teacher-team-panel.team-c { background: rgba(255, 242, 234, 0.92); }
+.teacher-team-panel.team-d { background: rgba(236, 246, 255, 0.92); }
+.teacher-team-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px 8px; }
+.teacher-team-heading span { display: block; color: #9a8fa3; font-size: 10px; font-weight: 900; letter-spacing: 0.12em; }
+.teacher-team-heading strong { display: block; color: #5a5063; font-size: 16px; }
+.teacher-team-heading b { display: inline-flex; align-items: center; justify-content: center; min-width: 48px; height: 34px; padding: 0 10px; border-radius: 12px; background: #b3a4e2; color: #fff; font-size: 15px; }
+.teacher-team-panel.team-b .teacher-team-heading b { background: #7dbba0; }
+.teacher-team-panel.team-c .teacher-team-heading b { background: #e8a17e; }
+.teacher-team-panel.team-d .teacher-team-heading b { background: #7ba9d8; }
+.teacher-participant-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 4px 12px 12px; overflow: auto; min-height: 0; }
+.participant-chip { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px 10px; border: 1px solid rgba(255,255,255,0.9); border-radius: 14px; background: rgba(255,255,255,0.78); }
+.participant-chip.offline { opacity: 0.6; }
+.participant-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: #6fbf95; box-shadow: 0 0 0 3px rgba(111, 191, 149, 0.2); }
+.participant-chip.offline .participant-dot { background: #c9c2cc; box-shadow: none; }
+.participant-chip-main { flex: 1; min-width: 0; }
+.participant-chip-main strong { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: #4f465b; font-size: 13px; }
+.participant-chip-main small { display: block; color: #9a8fa3; font-size: 10px; }
+.participant-team-select { flex: none; width: auto; min-height: 30px; padding: 2px 6px; border-radius: 9px; font-size: 11px; font-weight: 800; }
+.team-empty-slot { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; min-height: 90px; color: #a59bae; font-size: 13px; font-weight: 700; border: 1px dashed #ddd4e4; border-radius: 14px; }
+
+.qr-center-column { display: flex; flex-direction: column; gap: 12px; }
+.room-qr-card { display: flex; flex-direction: column; align-items: center; padding: 14px; border: 1px solid rgba(255,255,255,0.9); border-radius: 22px; background: rgba(255, 252, 247, 0.94); box-shadow: 0 10px 26px rgba(80, 60, 90, 0.12); }
+.room-qr-image-button { width: 100%; max-width: 230px; aspect-ratio: 1; padding: 0; border: 0; border-radius: 16px; background: #fff; overflow: hidden; cursor: zoom-in; }
+.room-qr-image-button img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.qr-loading-placeholder { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; color: #b7aec0; font-weight: 900; }
+.room-qr-copy { padding: 10px 4px 0; text-align: center; }
+.room-qr-copy span, .room-qr-copy strong, .room-qr-copy small { display: block; }
+.room-qr-copy span { color: #90859c; font-size: 11px; font-weight: 800; }
+.room-qr-copy strong { margin-top: 3px; color: #554c61; font-size: 13px; }
+.room-qr-copy small { margin-top: 5px; color: #c56e72; }
+.rope-status-card { display: flex; flex-direction: column; align-items: center; padding: 12px; border: 1px solid rgba(255,255,255,0.9); border-radius: 18px; background: rgba(255, 252, 247, 0.9); text-align: center; }
+.rope-status-card span, .rope-status-card small { color: #9b8f96; font-size: 10px; font-weight: 900; }
+.rope-status-card strong { margin: 2px 0; color: #705f74; font-size: 26px; letter-spacing: 0.08em; }
+
+.teacher-lobby-controls { display: flex; flex-direction: column; gap: 10px; align-items: center; padding: 14px 18px; border: 1px solid rgba(255,255,255,0.9); border-radius: 22px; background: rgba(255, 252, 247, 0.9); }
+.room-config-summary { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.room-config-summary span { padding: 4px 10px; border-radius: 999px; background: #f3effc; color: #6f6483; font-size: 11px; font-weight: 800; }
+.local-qr-warning { padding: 10px 14px; border: 1px solid #f2dfb0; border-radius: 12px; background: #fff7dd; color: #8a6d2a; font-size: 12px; font-weight: 700; text-align: center; }
+.lobby-action-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.lobby-soft-button, .lobby-start-button, .lobby-danger-button, .close-room-confirm button { min-height: 46px; padding: 0 20px; border-radius: 15px; font-weight: 850; }
+.lobby-soft-button { border: 1px solid #e6dfeb; background: #fff; color: #736c7d; }
+.lobby-start-button { min-width: 150px; border: 0; background: linear-gradient(135deg, #9184c5, #78b39d); color: #fff; box-shadow: 0 8px 22px rgba(123, 108, 172, 0.22); }
+.lobby-start-button:disabled { opacity: 0.46; cursor: not-allowed; box-shadow: none; }
+.lobby-danger-button { border: 1px solid #f0dadd; background: #fff5f6; color: #b36d75; }
+.close-room-confirm { display: inline-flex; align-items: center; gap: 8px; padding: 4px 6px 4px 14px; border-radius: 15px; background: #fff1f0; color: #9a6264; font-size: 13px; font-weight: 800; }
+.close-room-confirm button { min-height: 36px; padding: 0 12px; border: 1px solid #f0dadd; background: #fff; color: #9a6264; }
+.close-room-confirm button:last-child { background: #c77e86; border-color: #c77e86; color: #fff; }
+.lobby-toast { padding: 8px 14px; border-radius: 12px; background: #f0edff; color: #6f62a3; font-size: 12px; font-weight: 800; }
+
+@media (max-width: 1000px) {
+  .teacher-team-grid { grid-template-columns: 1fr; }
+  .qr-center-column { flex-direction: row; align-items: stretch; }
+  .qr-center-column > * { flex: 1; }
+  .room-qr-image-button { max-width: 170px; }
+}
+@media (max-width: 720px) {
+  .teacher-lobby { padding: 12px; }
+  .teacher-lobby-topbar { grid-template-columns: 1fr; }
+  .lobby-title-card, .lobby-online-card { justify-self: stretch; text-align: left; }
+  .lobby-join-link { grid-template-columns: 1fr 1fr; }
+  .lobby-join-link > span { grid-column: 1 / -1; }
+  .lobby-join-link input { grid-column: 1 / -1; }
+  .teacher-team-panels-wrap { grid-template-columns: 1fr; }
+  .teacher-participant-list { grid-template-columns: 1fr; }
+  .qr-center-column { flex-direction: column; }
+}
+
+/* ===== 경기 화면 점수판과 조작 ===== */
+.teacher-match-scoreboard {
+  position: relative; z-index: 2; display: grid; grid-template-columns: repeat(var(--teams, 2), minmax(0, 1fr)) auto; gap: 0;
+  width: min(1200px, calc(100% - 28px)); margin: 18px auto 0; border: 4px solid rgba(255,255,255,0.8); border-radius: 24px; overflow: hidden;
+  background: rgba(255, 250, 244, 0.93); box-shadow: 0 14px 38px rgba(68, 54, 74, 0.18);
+}
+.match-score { display: flex; flex-direction: column; justify-content: center; gap: 2px; min-width: 0; padding: 12px 18px; }
+.match-score > span { color: #7d7389; font-size: 12px; font-weight: 900; letter-spacing: 0.08em; white-space: nowrap; }
+.match-score > strong { font-size: clamp(26px, 3.2vw, 40px); line-height: 1.05; font-variant-numeric: tabular-nums; }
+.match-score small { color: #847a8a; font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.match-score-bar { width: 100%; height: 8px; margin-top: 4px; border-radius: 999px; background: #e9e2ea; overflow: hidden; }
 .match-score-bar i { display: block; height: 100%; border-radius: 999px; transition: width 0.4s ease; }
-.match-score small { display: block; margin-top: 4px; color: #847a8a; font-size: 11px; font-weight: 700; }
-.match-roster-grid { display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.team-a-score { background: rgba(238, 231, 255, 0.85); color: #5f4f8f; }
+.team-b-score { background: rgba(226, 247, 238, 0.85); color: #2f6f5b; }
+.team-c-score { background: rgba(255, 240, 231, 0.85); color: #9a5a3f; }
+.team-d-score { background: rgba(236, 246, 255, 0.85); color: #3b6a99; }
+.match-score.is-winner { box-shadow: inset 0 0 0 3px #ffd166; }
+.match-center-info { display: flex; flex-direction: column; justify-content: center; align-items: center; min-width: 190px; padding: 10px 22px; color: #5c5363; border-left: 1px solid rgba(0,0,0,0.05); }
+.match-center-info > span, .match-center-info > small { color: #94899d; font-size: 10px; font-weight: 800; white-space: nowrap; }
+.match-center-info > strong { font-variant-numeric: tabular-nums; font-size: 34px; letter-spacing: 0.05em; line-height: 1.1; }
+.teacher-match-shell .battle-arena { position: relative; z-index: 2; width: min(1500px, calc(100% - 28px)); margin: 12px auto; }
+.match-roster-grid { position: relative; z-index: 2; display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); width: min(1500px, calc(100% - 28px)); margin: 0 auto; }
 .match-roster-grid.team-count-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .match-roster-grid.team-count-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .team-squad-summary { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px 8px; color: #6e6477; font-size: 11px; font-weight: 800; }
 .team-squad-summary span { padding: 3px 8px; border-radius: 999px; background: #fff9; border: 1px solid #fff; }
-.battle-guide { position: relative; z-index: 2; margin: 0 auto 16px; max-width: 1200px; padding: 0 18px; text-align: center; color: #fff3e0; font-size: 12px; font-weight: 700; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); }
-.teacher-match-shell .battle-arena { position: relative; z-index: 2; width: min(1500px, calc(100% - 28px)); margin: 12px auto; }
-.tournament-tie-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; margin: 10px 0; }
-.tournament-tie-actions small { width: 100%; color: #7a6f80; font-weight: 700; }
-.tournament-tie-actions button { padding: 8px 14px; border: 0; border-radius: 12px; background: #9184c5; color: #fff; font-weight: 800; }
+.teacher-match-controls { position: relative; z-index: 2; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; width: min(1500px, calc(100% - 28px)); margin: 16px auto 8px; }
+.match-finish-button, .match-close-button { min-height: 46px; padding: 0 22px; border: 1px solid rgba(255,255,255,0.9); border-radius: 15px; font-weight: 850; box-shadow: 0 8px 20px rgba(68, 54, 74, 0.14); }
+.match-finish-button { background: #fff4d9; color: #8b7047; }
+.match-close-button { background: #fff1f0; color: #9a6264; }
+.battle-guide { position: relative; z-index: 2; margin: 0 auto 14px; max-width: 1200px; padding: 0 18px; text-align: center; color: #fff3e0; font-size: 12px; font-weight: 700; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); }
 @media (max-width: 1000px) {
+  .teacher-match-scoreboard { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .match-center-info { grid-column: 1 / -1; border-left: 0; border-top: 1px solid rgba(0,0,0,0.05); }
   .match-roster-grid.team-count-3, .match-roster-grid.team-count-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 640px) {
+  .teacher-match-scoreboard { grid-template-columns: 1fr; }
   .match-roster-grid, .match-roster-grid.team-count-3, .match-roster-grid.team-count-4 { grid-template-columns: 1fr; }
-  .match-score { min-width: 0; }
 }
+
+/* 박 체력 설정 */
+.hp-preset-row { align-items: stretch; }
+.hp-preset-row > button { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.hp-preset-row > button small { font-size: 10px; font-weight: 700; opacity: 0.75; }
+.hp-custom-input { flex: 0 0 auto; flex-direction: row; align-items: center; gap: 8px; font-size: 12px; color: #756f83; }
+.hp-custom-input input { width: 96px; min-height: 44px; padding: 8px 10px; text-align: center; font-weight: 800; }
