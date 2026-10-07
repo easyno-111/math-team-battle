@@ -98,10 +98,6 @@
           }
         }
       }
-    },
-    "aiPrivate": {
-      ".read": false,
-      ".write": false
     }
   }
 }

@@ -1,0 +1,2 @@
+.battle-arena { position: relative; width: 100%; border-radius: 22px; overflow: hidden; border: 1px solid #ffffff99; background: #f6ebd6; box-shadow: 0 14px 40px rgba(80, 60, 40, 0.14); }
+.battle-canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; image-rendering: crisp-edges; }
