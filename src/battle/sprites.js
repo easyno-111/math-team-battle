@@ -135,6 +135,18 @@ export function drawGourd(ctx, { x, y, size, color, dark, light, stage = 0, shie
   }
 }
 
+export function drawShieldRing(ctx, x, y, radius) {
+  const px = Math.max(2, Math.round(radius / 12));
+  ctx.save();
+  ctx.strokeStyle = "rgba(255, 221, 102, 0.9)";
+  ctx.lineWidth = Math.max(2, px);
+  ctx.setLineDash([px * 2, px * 2]);
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
 // Shell fragments after a burst: a few chunky pixel pieces.
 export function drawShard(ctx, { x, y, size, color, dark, rotation }) {
   ctx.save();

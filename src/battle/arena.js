@@ -2,9 +2,9 @@
 // Feed it team states (setTeams) and volley events (pushEvent) and it animates what happened.
 import { TEAM_IDS, TEAM_META } from "../game/teams.js";
 import { SQUAD_SIZE, UNIT_META, unitLabel } from "../game/rules.js";
-import { drawGourd, drawShard, drawTierMark, drawUnit, SPRITE_H, unitPalette } from "./sprites.js";
+import { drawGourd, drawShard, drawShieldRing, drawTierMark, drawUnit, SPRITE_H, unitPalette } from "./sprites.js";
 import { createParticles } from "./particles.js";
-import { getTintedAsset, getAsset, loadAssets } from "./assets.js";
+import { getTintedAsset, loadAssets } from "./assets.js";
 
 export const ARENA_W = 960;
 export const ARENA_H = 540;
@@ -21,6 +21,13 @@ const HIT_COLORS = { extra: ["#ffffff", "#ffd166", "#ff7b54", "#e0453f"] };
 function lerp(a, b, t) { return a + (b - a) * t; }
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 function easeOut(t) { return 1 - (1 - t) ** 3; }
+
+// Mixes a hex color toward white so multiply-tinted grayscale art stays bright.
+function lighten(hex, amount) {
+  const value = parseInt(hex.slice(1), 16);
+  const channel = (shift) => Math.round(((value >> shift) & 255) + (255 - ((value >> shift) & 255)) * amount);
+  return `#${[16, 8, 0].map((shift) => channel(shift).toString(16).padStart(2, "0")).join("")}`;
+}
 
 function stageFor(ratio) {
   if (ratio > 0.66) return 0;
@@ -354,9 +361,11 @@ export function createArena(canvas, options = {}) {
     const sky = ctx.createLinearGradient(0, 0, 0, ARENA_H);
     sky.addColorStop(0, "#fff7e8"); sky.addColorStop(0.7, "#f6ebd6"); sky.addColorStop(1, "#e8dcc1");
     ctx.fillStyle = sky; ctx.fillRect(0, 0, ARENA_W, ARENA_H);
-    const ground = getAsset("ground");
-    if (ground) ctx.drawImage(ground, 0, GROUND_Y - 6, ARENA_W, ARENA_H - GROUND_Y + 6);
-    else {
+    const ground = getTintedAsset("ground", "#d8c49a");
+    if (ground) {
+      const tileH = ARENA_H - GROUND_Y + 10, tileW = Math.round(tileH * (ground.width / ground.height));
+      for (let x = 0; x < ARENA_W; x += tileW) ctx.drawImage(ground, x, GROUND_Y - 10, tileW, tileH);
+    } else {
       ctx.fillStyle = "#cfc39f"; ctx.fillRect(0, GROUND_Y - 4, ARENA_W, 4);
       ctx.fillStyle = "#b9ad87"; ctx.fillRect(0, GROUND_Y, ARENA_W, ARENA_H - GROUND_Y);
       ctx.fillStyle = "#a89c78";
@@ -373,10 +382,12 @@ export function createArena(canvas, options = {}) {
     const { cx, meta, gourdSize } = lane;
     const ratio = lane.hp / lane.maxHp;
     // pole and rope
-    const pole = getAsset("pole");
+    const pole = getTintedAsset("pole", "#c9a27a");
     const poleX = Math.round(cx);
-    if (pole) ctx.drawImage(pole, poleX - pole.naturalWidth / 2, 40, pole.naturalWidth, GROUND_Y - 40);
-    else {
+    if (pole) {
+      const h = GROUND_Y - 34, w = Math.round(h * (pole.width / pole.height));
+      ctx.drawImage(pole, poleX - w / 2, 34, w, h);
+    } else {
       ctx.fillStyle = "#8a6a4a"; ctx.fillRect(poleX - 3, 40, 6, GROUND_Y - 40);
       ctx.fillStyle = "#6b4f33"; ctx.fillRect(poleX - 22, 40, 44, 6);
     }
@@ -389,12 +400,12 @@ export function createArena(canvas, options = {}) {
     ctx.fillText(`${lane.id} · ${meta.short}`, cx, 28);
     if (!lane.burst) {
       const stage = stageFor(ratio);
-      const asset = getTintedAsset(`gourd-${stage + 1}`, meta.color);
+      const asset = getTintedAsset(`gourd-${stage + 1}`, lighten(meta.color, 0.22));
       if (asset) {
         const w = gourdSize * 1.15, h = w * (asset.height / asset.width);
         ctx.save(); ctx.translate(gx, gy); ctx.scale(1 / lane.squash, lane.squash);
         ctx.drawImage(asset, -w / 2, -h / 2, w, h); ctx.restore();
-        if (lane.shield > 0) drawGourd(ctx, { x: gx, y: gy, size: 0, color: meta.color, dark: meta.dark, light: meta.light, shield: lane.shield, squash: 1 });
+        if (lane.shield > 0) drawShieldRing(ctx, gx, gy, gourdSize / 2 + 10);
       } else {
         drawGourd(ctx, { x: gx, y: gy, size: gourdSize, color: meta.color, dark: meta.dark, light: meta.light, stage, shield: lane.shield, squash: lane.squash });
       }
@@ -475,19 +486,23 @@ export function createArena(canvas, options = {}) {
     const height = easeOut(t) * 150;
     const width = Math.min(lane.laneWidth - 30, 220);
     const x = Math.round(lane.cx - width / 2), y = GOURD_Y - 40;
-    const banner = getAsset("banner");
-    if (banner) ctx.drawImage(banner, x, y, width, height * 1.1);
-    else {
+    const banner = getTintedAsset("banner", "#fff6e4");
+    if (banner) {
+      const fullH = width * (banner.height / banner.width);
+      ctx.save(); ctx.beginPath(); ctx.rect(x - 20, y - 10, width + 40, 10 + fullH * easeOut(t)); ctx.clip();
+      ctx.drawImage(banner, x, y, width, fullH); ctx.restore();
+    } else {
       ctx.fillStyle = "#fff8e6"; ctx.fillRect(x, y, width, height);
       ctx.fillStyle = lane.meta.color; ctx.fillRect(x, y, width, 8); ctx.fillRect(x, y + height - 8, width, 8);
       ctx.fillStyle = "#2c2430"; ctx.fillRect(x - 4, y, 4, height); ctx.fillRect(x + width, y, 4, height);
     }
     if (t > 0.6) {
+      const clothH = banner ? width * (banner.height / banner.width) : height;
       ctx.textAlign = "center";
       ctx.fillStyle = lane.meta.dark; ctx.font = `900 ${Math.round(Math.min(64, width / 3.4))}px 'Pretendard', sans-serif`;
-      ctx.fillText("WIN", lane.cx, y + height * 0.55);
+      ctx.fillText("WIN", lane.cx, y + clothH * 0.56);
       ctx.fillStyle = "#2c2430"; ctx.font = "900 16px 'Pretendard', sans-serif";
-      ctx.fillText(`${lane.meta.label} 승리!`, lane.cx, y + height * 0.85);
+      ctx.fillText(`${lane.meta.label} 승리!`, lane.cx, y + clothH * 0.76);
     }
   }
 
