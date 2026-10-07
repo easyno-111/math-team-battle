@@ -13,6 +13,7 @@ import QuizRoundStage from './QuizRoundStage';
 import QuizBoard, { QuizBrand } from './QuizBoard';
 import { answerLabel, leaderboard, newId, publicQuestion, settleRound, validateSet } from './model';
 import { answerWindowOpen, canAdvanceRound, QUESTION_PREVIEW_MS, quizPhase, roundReadyToGrade, scheduleRound } from './flow';
+import { VERSION } from '../version';
 import './quiz.css';
 
 function useClock(db) {
@@ -107,7 +108,7 @@ export default function QuizHost({user,questions,importNotice='',onImportNoticeC
   const phase=quizPhase(room,clock.now);
   const url=new URL(window.location.href);url.search='';url.hash='';url.searchParams.set('mode','quizstudent');url.searchParams.set('quiz',code);
   return <section className="qm-root qm-host">
-    <header className="qm-title qm-live-title"><QuizBrand subtitle={room.title}/><div className="qm-session-meta"><span className={`qm-connection ${clock.connected ? 'online' : ''}`}><i/>{clock.connected ? '연결됨' : '연결 복구 중'}</span><span className="qm-room-pin">방 번호 <b>{code}</b></span><small>v0.16.0</small></div></header>
+    <header className="qm-title qm-live-title"><QuizBrand subtitle={room.title}/><div className="qm-session-meta"><span className={`qm-connection ${clock.connected ? 'online' : ''}`}><i/>{clock.connected ? '연결됨' : '연결 복구 중'}</span><span className="qm-room-pin">방 번호 <b>{code}</b></span><small>{VERSION}</small></div></header>
     {importNotice && <p className="qm-message" role="status">{importNotice}<br/>진행 중인 방은 그대로 유지됩니다. 담은 문제는 다음 퀴즈 초안에서 확인할 수 있어요. {onImportNoticeClear&&<button type="button" onClick={onImportNoticeClear}>확인</button>}</p>}
     {message && <p className="qm-message" role="status">{message}</p>}
     {room.phase === 'waiting' ? <div className="qm-wait-grid">
@@ -127,7 +128,7 @@ export default function QuizHost({user,questions,importNotice='',onImportNoticeC
   </section>;
 }
 
-export function QuizStudent({initialCode='',version='v0.16.0'}) {
+export function QuizStudent({initialCode='',version=VERSION}) {
   const [user,setUser]=useState(null),[code,setCode]=useState(()=>initialCode||sessionStorage.getItem('qm-student-code')||''),[name,setName]=useState(()=>sessionStorage.getItem('qm-student-name')||''),[activeCode,setActiveCode]=useState(''),[room,setRoom]=useState(null),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[sent,setSent]=useState('');
   const submitLock=useRef(false),clock=useClock(studentRealtime);
   useEffect(()=>{const stop=onAuthStateChanged(studentAuth,setUser);let cancelled=false;prepareStudentAuthPersistence().then(()=>studentAuth.authStateReady()).then(()=>{if(!cancelled&&!studentAuth.currentUser)return signInAnonymously(studentAuth);}).catch(e=>setMessage(`학생 로그인 실패: ${e.message}`));return()=>{cancelled=true;stop();};},[]);

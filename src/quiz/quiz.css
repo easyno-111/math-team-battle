@@ -1,4 +1,4 @@
-/* Quiz classroom — v0.16.0. A static chalk texture, shared by every question surface. */
+/* Quiz classroom. A static chalk texture, shared by every question surface. */
 .qm-root {
   --qm-ink: #253f36;
   --qm-muted: #6c7a70;
@@ -133,20 +133,9 @@
 .qm-root .qm-mini-board { padding: 24px; font-size: 20px; line-height: 1.9; border-color: #51694e; border-bottom: 4px solid #bd9970; color: #fffdf1; background-color: #1e493a; background-image: linear-gradient(110deg, #092b2538, #17342d12), var(--qm-chalk-image); background-size: cover; background-position: center; }
 .qm-root .qm-mini-board > small { color: #d2dbb8; font-size: 11px; margin-bottom: 14px; }
 .qm-root .qm-mini-board > .math-text-flow:empty::after { content: '문제를 입력하면 이곳에 표시돼요.'; color: #bfcdba; font-size: 16px; }
-.qm-bank, .qm-ai { margin-top: 18px; padding: 20px; border-radius: 16px; background: #eef2e8; border: 1px solid #e0e6d7; }
+.qm-bank { margin-top: 18px; padding: 20px; border-radius: 16px; background: #eef2e8; border: 1px solid #e0e6d7; }
 .qm-bank-items { max-height: 240px; overflow: auto; display: grid; gap: 6px; margin-top: 10px; }
 .qm-bank-items button { justify-content: flex-start; text-align: left; }
-.qm-ai { background: #f6f3e8; border-color: #e6dfc8; }
-.qm-ai .qm-section-head { margin-bottom: 8px; }
-.qm-ai-spark { color: #9f792d; font-size: 28px; }
-.qm-ai .ai-provider-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 18px 0 14px; }
-.qm-ai .ai-provider-card { display: grid; justify-content: stretch; text-align: left; gap: 5px; }
-.qm-ai .ai-provider-card[aria-pressed=true] { background: #e9efe1; border-color: #608562; box-shadow: inset 0 0 0 1px #608562; }
-.qm-ai .advanced-ai-note { color: #6e755f; }
-.qm-ai .qm-row > select { flex: 1 1 240px; width: auto; }
-.qm-candidate { margin-top: 16px; background: #fffef8; border: 1px solid #bacbb0; border-radius: 12px; padding: 16px; }
-.qm-candidate article { border-bottom: 1px solid var(--qm-line); padding: 14px 0; display: grid; gap: 7px; }
-.qm-candidate > button { margin: 12px 8px 0 0; }
 .qm-launch { margin-top: 24px; border-top: 1px solid var(--qm-line); padding-top: 24px; }
 .qm-launch .qm-row { margin-bottom: 0; }
 .qm-launch .qm-primary { margin-left: auto; }
@@ -500,9 +489,7 @@ body:has(.qm-student) { background: #f5f4eb; }
   .qm-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .qm-root fieldset { padding: 15px; }
   .qm-root .qm-mini-board { padding: 20px 16px; font-size: 19px; }
-  .qm-simple, .qm-ai, .qm-bank { padding: 16px; }
-  .qm-ai .ai-provider-grid { gap: 8px; }
-  .qm-ai .ai-provider-card { padding: 12px; }
+  .qm-simple, .qm-bank { padding: 16px; }
   .qm-root .qm-primary small { font-size: 10px; }
   .qm-root .qm-primary > span:last-child { margin-left: 3px; }
   .qm-launch .qm-row > .qm-primary { width: 100%; order: 2; margin: 7px 0; justify-content: space-between; }
@@ -849,13 +836,6 @@ body:has(.qm-student) { background: #f5f4eb; }
 @keyframes qmAwardCrown { 0% { transform: translateY(-14px) rotate(-12deg) scale(.7); } 50% { transform: translateY(1px) rotate(6deg) scale(1.15); } 100% { transform: none; } }
 @keyframes qmAwardShine { from { opacity: 0; transform: translateX(-75%); } 30% { opacity: .7; } to { opacity: 0; transform: translateX(75%); } }
 @keyframes qmAwardSpark { 0% { opacity: 0; transform: translateY(-15px) rotate(0); } 12% { opacity: .9; } 100% { opacity: 0; transform: translateY(230px) rotate(var(--spark-turn)); } }
-.qm-ai-preset { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; margin: 8px 0 14px; }
-.qm-ai-preset small { color: #627262; }
-.qm-candidate-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); list-style: none; padding: 0; gap: 7px; }
-.qm-candidate-choices li { display: flex; gap: 8px; padding: 9px; border: 1px solid #dce3d8; border-radius: 8px; min-width: 0; }
-.qm-candidate-choices li > span:first-child { color: #627262; font-size: 12px; font-weight: 800; }
-.qm-candidate-choices .correct { background: #eef7e7; border-color: #90b785; }
-.qm-candidate article > a { display: inline-block; margin-top: 9px; color: #42664f; font-size: 12px; overflow-wrap: anywhere; }
 @media(max-width:600px) {
   .qm-awards { padding: 18px 14px 12px; }
   .qm-award-heading { flex-direction: column; align-items: flex-start; gap: 10px; }
@@ -868,7 +848,6 @@ body:has(.qm-student) { background: #f5f4eb; }
   .qm-award-card.rank-1 .qm-award-emblem { width: 38px; height: 38px; }
   .qm-award-place { font-size: 25px; }
   .qm-award-record { font-size: 11px; }
-  .qm-candidate-choices { grid-template-columns: 1fr; }
 }
 @media(prefers-reduced-motion:reduce) {
   .qm-award-sparks { display: none; }
