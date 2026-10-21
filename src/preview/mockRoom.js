@@ -1,5 +1,5 @@
 // Fake room data for screen previews (?mode=preview&screen=...). Never touches Firebase.
-import { createTeamState } from "../game/rules";
+import { createTeamState, UNIT_LIFETIME_MS } from "../game/rules";
 
 const NAMES = ["김민수", "이서연", "박지호", "최하린", "정도윤", "강예린", "윤시우", "장유나", "오지안", "한도현", "서하율", "임채원"];
 
@@ -17,7 +17,9 @@ export function mockRoom(teamCount = 2, status = "waiting") {
   const teamStates = Object.fromEntries(teams.map((team, index) => {
     const state = createTeamState(Object.values(participants).filter((p) => p.team === team).length, 120);
     state.hp = Math.round(state.maxHp * (0.9 - index * 0.2));
-    state.squad = Array.from({ length: 4 + index * 2 }, (_, i) => ({ cls: ["warrior", "archer", "mage", "healer", "paladin"][(i + index) % 5], tier: 1 + (i % 3 === 2 ? 1 : 0) }));
+    const owners = Object.values(participants).filter((person) => person.team === team);
+    const now = Date.now();
+    state.squad = Array.from({ length: 4 + index * 2 }, (_, i) => ({ id: `${team}-${i}`, ownerUid: owners[i % owners.length].uid, ownerName: owners[i % owners.length].name, spawnedAt: now - i * 2000, expiresAt: now - i * 2000 + UNIT_LIFETIME_MS, cls: ["warrior", "archer", "mage", "healer", "paladin"][(i + index) % 5], tier: 1 + (i % 3 === 2 ? 1 : 0) }));
     state.summoned = state.squad.length + index;
     return [team, state];
   }));
@@ -28,3 +30,4 @@ export function mockRoom(teamCount = 2, status = "waiting") {
     scheduledEndAt: Date.now() + 4 * 60_000, winner: null, battleEvents: {},
   };
 }
+

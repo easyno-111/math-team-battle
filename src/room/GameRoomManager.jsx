@@ -10,8 +10,10 @@ import RealtimeSetupNotice from "./RealtimeSetupNotice";
 import RoomSetup from "./RoomSetup";
 import TeacherLobby from "./TeacherLobby";
 import TeacherMatch from "./TeacherMatch";
+import { useBattleClock } from "../hooks/useBattleClock";
 
 export default function GameRoomManager({ user, questions, onGoQuestionBank }) {
+  const { getNow } = useBattleClock(adminRealtime);
   const [activeRoomCode, setActiveRoomCode] = useState(() => localStorage.getItem(roomStorageKey(user.uid)) || "");
   const [room, setRoom] = useState(null);
   const [roomLoading, setRoomLoading] = useState(Boolean(activeRoomCode));
@@ -96,7 +98,7 @@ export default function GameRoomManager({ user, questions, onGoQuestionBank }) {
     const teamsNow = teamsMirror.current || normalizeTeams(current.teams);
     const question = questionMap.get(submission.questionId);
     const pool = filterQuestionPool(questions, current.config);
-    const result = judgeSubmission({ room: current, teams: teamsNow, uid, submission, question, pool });
+    const result = judgeSubmission({ room: current, teams: teamsNow, uid, submission, question, pool, now: getNow() });
     const updates = { [submissionPath]: null };
     for (const [path, value] of Object.entries(result.updates)) updates[`${roomPath}/${path}`] = value;
     if (result.kind === "correct") {
@@ -139,7 +141,7 @@ export default function GameRoomManager({ user, questions, onGoQuestionBank }) {
   // Clock. The gourd burst ends the game earlier; this handles the time limit.
   useEffect(() => {
     if (!room || room.status !== "playing" || !room.scheduledEndAt) return undefined;
-    const timer = window.setInterval(() => { if (Date.now() >= Number(room.scheduledEndAt)) finishMatch("time"); }, 1000);
+    const timer = window.setInterval(() => { if (getNow() >= Number(room.scheduledEndAt)) finishMatch("time"); }, 1000);
     return () => window.clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room?.status, room?.scheduledEndAt]);
@@ -211,7 +213,7 @@ export default function GameRoomManager({ user, questions, onGoQuestionBank }) {
       teamsMirror.current = null;
       finishing.current = false;
       await update(ref(adminRealtime, roomPath), {
-        status: "playing", startingAt: null, startedAt: serverTimestamp(), scheduledEndAt: Date.now() + minutes * 60_000,
+        status: "playing", startingAt: null, startedAt: serverTimestamp(), scheduledEndAt: getNow() + minutes * 60_000,
         finishedAt: null, winner: null, finishReason: null, tiedTeams: null, ranking: null,
         teams: teamStates, playerStates, battleEvents: null, matchId: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       });
@@ -326,3 +328,4 @@ export default function GameRoomManager({ user, questions, onGoQuestionBank }) {
     />
   );
 }
+

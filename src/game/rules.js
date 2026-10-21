@@ -1,6 +1,6 @@
 // Gourd-battle rules. Pure functions only: no React, no Firebase, no timers.
 // Every team owns a gourd. A correct answer summons a unit for that team and the
-// team's squad fires a volley at its own gourd. The first gourd to burst wins.
+// student's living squad fires at its own gourd. The first gourd to burst wins.
 import { TEAM_IDS } from "./teams.js";
 
 export const UNIT_CLASSES = ["warrior", "archer", "mage", "healer", "paladin"];
@@ -19,16 +19,17 @@ export const TIER_LABELS = ["", "일반", "강화", "정예"];
 export const MAX_TIER = 3;
 // Streak needed to summon each tier: tier 1 always, tier 2 from 5 in a row, tier 3 from 10.
 export const TIER_STREAKS = [1, 5, 10];
-export const SQUAD_SIZE = 12;
+export const PERSONAL_SQUAD_SIZE = 3;
+export const UNIT_LIFETIME_MS = 45_000;
 export const MAX_SHIELD = 3;
 export const SHIELD_FACTOR = 0.4;
 export const BASE_DAMAGE = { 쉬움: 3, 보통: 5, 어려움: 8, 도전: 12 };
-// Gourd hp per team member. ~120 lasts two to three minutes at a normal answering pace.
+// Gourd hp per team member. Duration depends on answering pace and team size.
 export const DEFAULT_HP_PER_MEMBER = 120;
 export const HP_PRESETS = [
-  { value: 70, label: "짧게", hint: "약 1~2분" },
-  { value: 120, label: "보통", hint: "약 2~3분" },
-  { value: 200, label: "길게", hint: "약 4~5분" },
+  { value: 70, label: "짧게", hint: "빠른 경기" },
+  { value: 120, label: "보통", hint: "기본 체력" },
+  { value: 200, label: "길게", hint: "여유 있는 경기" },
 ];
 export const HP_PER_MEMBER_RANGE = { min: 20, max: 1000 };
 export const WRONG_LOCK_MS = 10_000;
@@ -99,7 +100,7 @@ export function normalizeTeamState(team) {
     hp: Math.max(0, Number(team?.hp) || 0),
     maxHp: Math.max(1, Number(team?.maxHp) || 1),
     shield: Math.max(0, Number(team?.shield) || 0),
-    squad: squad.filter((unit) => unit && UNIT_META[unit.cls]).slice(-SQUAD_SIZE),
+    squad: squad.filter((unit) => unit && UNIT_META[unit.cls]),
     summoned: Math.max(0, Number(team?.summoned) || 0),
     damageDealt: Math.max(0, Number(team?.damageDealt) || 0),
     members: Math.max(1, Number(team?.members) || 1),
@@ -125,14 +126,32 @@ export function squadPower(squad, role) {
   return (squad || []).filter((unit) => UNIT_META[unit.cls]?.role === role).reduce((sum, unit) => sum + unitPower(unit), 0);
 }
 
-// One correct answer: summon, then the whole squad acts. Returns new team states and what happened.
-export function resolveVolley({ teams, teamId, difficulty, unit }) {
+// Absolute host/server timestamps survive remounts. Legacy ownerless units retire
+// instead of being assigned to the next student who answers.
+export function activeUnits(squad, now) {
+  const units = Array.isArray(squad) ? squad : Object.values(squad || {});
+  return units.filter((unit) => unit && UNIT_META[unit.cls] && unit.id && unit.ownerUid && Number(unit.expiresAt) > now);
+}
+
+export function addPersonalUnit(squad, unit, now) {
+  const living = activeUnits(squad, now).filter((item) => item.id !== unit.id);
+  const own = living.filter((item) => item.ownerUid === unit.ownerUid)
+    .sort((a, b) => Number(a.spawnedAt) - Number(b.spawnedAt));
+  const retired = new Set(own.slice(0, Math.max(0, own.length - PERSONAL_SQUAD_SIZE + 1)).map((item) => item.id));
+  return [...living.filter((item) => !retired.has(item.id)), unit];
+}
+
+// One correct answer: summon, then only that owner's living units act.
+export function resolveVolley({ teams, teamId, difficulty, unit, now = Date.now() }) {
+  if (!unit?.id || !unit.ownerUid || !Number.isFinite(unit.spawnedAt) || !Number.isFinite(unit.expiresAt)
+    || unit.spawnedAt > now || unit.expiresAt <= now || !UNIT_META[unit.cls]) throw new Error("invalid-summon");
   const current = normalizeTeams(teams);
   const self = current[teamId];
   if (!self) throw new Error(`unknown-team:${teamId}`);
-  const squad = [...self.squad, unit].slice(-SQUAD_SIZE);
+  const squad = addPersonalUnit(self.squad, unit, now);
+  const actingUnits = squad.filter((item) => item.ownerUid === unit.ownerUid);
   const tierBoost = 1 + 0.5 * ((Number(unit.tier) || 1) - 1);
-  const rawDamage = Math.round((BASE_DAMAGE[difficulty] ?? BASE_DAMAGE.보통) * tierBoost) + squadPower(squad, "attack");
+  const rawDamage = Math.round((BASE_DAMAGE[difficulty] ?? BASE_DAMAGE.보통) * tierBoost) + squadPower(actingUnits, "attack");
   const shieldUsed = self.shield > 0;
   const damage = shieldUsed ? Math.max(1, Math.ceil(rawDamage * SHIELD_FACTOR)) : rawDamage;
   const hp = Math.max(0, self.hp - damage);
@@ -143,14 +162,14 @@ export function resolveVolley({ teams, teamId, difficulty, unit }) {
   const rivalId = pickRivalTeam(current, teamId);
   if (rivalId) {
     const rival = next[rivalId];
-    const healAmount = Math.min(squadPower(squad, "heal"), rival.maxHp - rival.hp);
-    const charges = Math.min(squadPower(squad, "shield"), MAX_SHIELD - rival.shield);
+    const healAmount = Math.min(squadPower(actingUnits, "heal"), rival.maxHp - rival.hp);
+    const charges = Math.min(squadPower(actingUnits, "shield"), MAX_SHIELD - rival.shield);
     if (healAmount > 0) heal = { team: rivalId, amount: healAmount };
     if (charges > 0) shieldGiven = { team: rivalId, charges };
     next[rivalId] = { ...rival, hp: rival.hp + Math.max(0, healAmount), shield: rival.shield + Math.max(0, charges) };
   }
 
-  return { teams: next, damage, rawDamage, shieldUsed, heal, shieldGiven, burst: hp === 0, hpAfter: hp };
+  return { teams: next, actingUnits, damage, rawDamage, shieldUsed, heal, shieldGiven, burst: hp === 0, hpAfter: hp };
 }
 
 // Lowest remaining ratio ranks first. Equal ratios share a rank.
@@ -170,3 +189,4 @@ export function finishByTime(teams) {
   const leaders = ranking.filter((row) => row.rank === 1).map((row) => row.team);
   return { winner: leaders.length === 1 ? leaders[0] : null, tied: leaders.length > 1 ? leaders : [], ranking };
 }
+

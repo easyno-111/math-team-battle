@@ -1,9 +1,10 @@
 // Canvas scene for the gourd battle. Pure rendering and timing; it never decides game outcomes.
 // Feed it team states (setTeams) and volley events (pushEvent) and it animates what happened.
 import { TEAM_IDS, TEAM_META } from "../game/teams.js";
-import { SQUAD_SIZE, UNIT_META, unitLabel } from "../game/rules.js";
+import { activeUnits, UNIT_LIFETIME_MS, UNIT_META, unitLabel } from "../game/rules.js";
 import { drawGourd, drawShard, drawShieldRing, drawTierMark, drawUnit, SPRITE_H, unitPalette } from "./sprites.js";
 import { createParticles } from "./particles.js";
+import { eventSquad, ownerGroups, syncArenaSquad } from "./squad.js";
 import { getTintedAsset, loadAssets } from "./assets.js";
 
 export const ARENA_W = 960;
@@ -40,6 +41,7 @@ export function createArena(canvas, options = {}) {
   const ctx = canvas.getContext("2d");
   const particles = createParticles();
   const reducedMotion = Boolean(options.reducedMotion);
+  const getNow = options.getNow || Date.now;
   let lanes = [];
   let laneById = new Map();
   let frame = 0;
@@ -75,44 +77,34 @@ export function createArena(canvas, options = {}) {
         hp: existing?.hp ?? 1, maxHp: existing?.maxHp ?? 1, targetHp: existing?.targetHp ?? 1,
         shield: existing?.shield ?? 0, targetShield: existing?.targetShield ?? 0,
         lastImpactAt: existing?.lastImpactAt ?? -10, squash: 1, squashVel: 0, hpFlash: 0,
-        units: existing?.units ?? [], crowd: existing?.crowd ?? 0, burst: existing?.burst ?? false,
+        units: existing?.units ?? [], burst: existing?.burst ?? false,
         rope: 0, ropeVel: 0, members: existing?.members ?? [], caption: null,
       };
     });
     laneById = new Map(lanes.map((lane) => [lane.id, lane]));
-    lanes.forEach((lane) => lane.units.forEach((unit, index) => placeUnit(lane, unit, index, lane.units.length)));
+    lanes.forEach(placeSquad);
   }
 
-  // Front row fills first; each row is centered on the pole so a small squad never hugs one side.
-  function slotFor(lane, index, total) {
-    const perRow = Math.ceil(SQUAD_SIZE / 2);
-    const row = index < perRow ? 1 : 0;
-    const col = index % perRow;
-    const inRow = row === 1 ? Math.min(total, perRow) : total - perRow;
-    const spacing = Math.min(lane.laneWidth / (perRow + 1), lane.px * 9);
-    const x = lane.cx + (col - (inRow - 1) / 2) * spacing + (row === 0 ? spacing * 0.5 : 0);
-    const y = GROUND_Y - row * lane.px * 9;
-    return { x: Math.round(x), y: Math.round(y) };
-  }
-
-  function placeUnit(lane, unit, index, total) {
-    const slot = slotFor(lane, index, total);
-    unit.targetX = slot.x;
-    unit.targetY = slot.y;
-    if (unit.x === undefined) { unit.x = slot.x; unit.y = slot.y; }
-  }
-
-  function addUnit(lane, unitData, dropIn) {
-    const unit = { cls: unitData.cls, tier: Number(unitData.tier) || 1, phase: Math.random() * Math.PI * 2, hop: 0, hopVel: 0, attackT: 0, flip: Math.random() < 0.5 };
-    lane.units.push(unit);
-    while (lane.units.length > SQUAD_SIZE) { lane.units.shift(); lane.crowd += 1; }
-    lane.units.forEach((item, index) => placeUnit(lane, item, index, lane.units.length));
-    if (dropIn) {
-      unit.y = unit.targetY - 140;
-      unit.x = unit.targetX;
-      unit.hopVel = 0;
-      particles.burst({ x: unit.x, y: unit.targetY, count: 10, speed: 70, color: "#e9d8b8", size: 3, angle: -Math.PI / 2, spread: Math.PI, gravity: 400 });
-    }
+  // Keep each student's units together, with one persistent owner label.
+  function placeSquad(lane) {
+    const groups = ownerGroups(lane.units);
+    const perRow = Math.max(1, Math.floor(lane.laneWidth / 112));
+    const rows = Math.max(1, Math.ceil(groups.length / perRow));
+    const rowHeight = Math.min(88, 200 / rows);
+    const groupWidth = lane.laneWidth / perRow;
+    const px = Math.max(1, Math.min(lane.px, Math.floor((rowHeight - 28) / SPRITE_H), Math.floor((groupWidth - 12) / 27)));
+    lane.groups = groups.map((units, index) => {
+      const row = Math.floor(index / perRow), col = index % perRow;
+      const cx = lane.cx - lane.laneWidth / 2 + groupWidth * (col + 0.5);
+      const y = GROUND_Y - 16 - (rows - row - 1) * rowHeight;
+      units.forEach((unit, i) => {
+        unit.px = px;
+        unit.targetX = Math.round(cx + (i - (units.length - 1) / 2) * px * 9);
+        unit.targetY = Math.round(y);
+        if (unit.x === undefined) { unit.x = unit.targetX; unit.y = unit.targetY; }
+      });
+      return { units, cx, y, width: groupWidth, px };
+    });
   }
 
   // Authoritative state. Called on every snapshot; animations in flight take priority briefly.
@@ -125,19 +117,12 @@ export function createArena(canvas, options = {}) {
       lane.targetHp = clamp(Number(team.hp) || 0, 0, lane.maxHp);
       lane.targetShield = Number(team.shield) || 0;
       lane.members = members[lane.id] || [];
-      const squad = Array.isArray(team.squad) ? team.squad : Object.values(team.squad || {});
-      const summoned = Number(team.summoned) || 0;
-      const known = lane.crowd + lane.units.length;
-      if (known === 0 && (squad.length || summoned)) {
-        // Fresh mount: materialize the current squad without animation.
-        squad.forEach((unit) => addUnit(lane, unit, false));
-        lane.crowd = Math.max(0, summoned - squad.length);
-        lane.hp = lane.targetHp;
-        lane.shield = lane.targetShield;
-      } else if (summoned > known) {
-        // Missed events (reconnect): append the units we never saw.
-        squad.slice(-(summoned - known)).forEach((unit) => addUnit(lane, unit, false));
-      }
+      const fresh = !lane.initialized;
+      lane.units = syncArenaSquad(lane.units, team.squad, getNow()).map((unit) => ({
+        phase: Math.random() * Math.PI * 2, hopVel: 0, attackT: 0, flip: Math.random() < 0.5, ...unit,
+      }));
+      placeSquad(lane);
+      if (fresh) { lane.hp = lane.targetHp; lane.shield = lane.targetShield; lane.initialized = true; }
       if (team.hp === 0 && !lane.burst && timeNow - lane.lastImpactAt > 2) burstGourd(lane, false);
     }
   }
@@ -146,11 +131,15 @@ export function createArena(canvas, options = {}) {
     const lane = laneById.get(event.team);
     if (!lane || !event.unit) return;
     const t0 = timeNow;
-    schedule.push({ at: t0, run: () => addUnit(lane, event.unit, true) });
-    const squadAfter = [...lane.units.map((u) => ({ cls: u.cls, tier: u.tier })), event.unit].slice(-SQUAD_SIZE);
+    const summoned = lane.units.find((unit) => unit.id === event.unit.id);
+    if (summoned && !reducedMotion) summoned.y = summoned.targetY - 100;
+    const squadAfter = eventSquad(event);
+    if (!squadAfter.length) return;
+    lane.activeOwner = event.attackerUid;
+    lane.activeUntil = timeNow + 1.8;
+    lane.caption = { text: `${event.attackerName || "학생"} · ${unitLabel(event.unit)} 소환!`, life: 1.8 };
     const attackers = squadAfter.filter((unit) => UNIT_META[unit.cls]?.role === "attack");
     const supporters = squadAfter.filter((unit) => UNIT_META[unit.cls]?.role !== "attack");
-    const maxTier = Math.max(1, ...squadAfter.map((u) => u.tier), Number(event.unit.tier) || 1);
     const volleyAt = t0 + SPAWN_DELAY;
     const lastImpact = { time: 0 };
     attackers.forEach((unit, index) => {
@@ -160,26 +149,29 @@ export function createArena(canvas, options = {}) {
     });
     if (!attackers.length) {
       // Base damage still lands: the summoned supporter throws a plain stone.
-      schedule.push({ at: volleyAt, run: () => fireProjectile(lane, { cls: "stone", tier: 1 }, { final: true, event }) });
+      schedule.push({ at: volleyAt, run: () => fireProjectile(lane, { ...event.unit, cls: "stone", tier: 1 }, { final: true, event }) });
       lastImpact.time = volleyAt + 0.35;
     }
     const rival = event.heal?.team || event.shieldGiven?.team;
     const rivalLane = rival ? laneById.get(rival) : null;
     if (rivalLane) {
+      const announced = new Set();
       supporters.forEach((unit, index) => {
         const role = UNIT_META[unit.cls]?.role;
-        if (role === "heal" && event.heal) schedule.push({ at: volleyAt + index * STAGGER, run: () => fireSupport(lane, rivalLane, unit, index === 0 ? event.heal : null, "heal") });
-        if (role === "shield" && event.shieldGiven) schedule.push({ at: volleyAt + index * STAGGER, run: () => fireSupport(lane, rivalLane, unit, index === 0 ? event.shieldGiven : null, "shield") });
+        const effect = role === "heal" ? event.heal : event.shieldGiven;
+        if (!effect) return;
+        const payload = announced.has(role) ? null : effect;
+        announced.add(role);
+        schedule.push({ at: volleyAt + index * STAGGER, run: () => fireSupport(lane, rivalLane, unit, payload, role) });
       });
     }
     lane.lastImpactAt = Math.max(lane.lastImpactAt, lastImpact.time + 1.2);
-    void maxTier;
   }
 
   function unitOrigin(lane, unitData) {
-    const live = lane.units.find((u) => u.cls === unitData.cls && u.tier === unitData.tier && !u.busy) || lane.units[lane.units.length - 1];
-    if (live) { live.attackT = 1; live.busy = true; setTimeout(() => { live.busy = false; }, 200); }
-    return { x: live?.x ?? lane.cx, y: (live?.y ?? GROUND_Y) - SPRITE_H * lane.px * 0.6 };
+    const live = lane.units.find((unit) => unit.id === unitData.id);
+    if (live) live.attackT = 1;
+    return { x: live?.x ?? lane.cx, y: (live?.y ?? GROUND_Y) - SPRITE_H * (live?.px || lane.px) * 0.6 };
   }
 
   function fireProjectile(lane, unitData, payload) {
@@ -292,6 +284,16 @@ export function createArena(canvas, options = {}) {
 
   function update(dt) {
     timeNow += dt;
+    for (const lane of lanes) {
+      const living = activeUnits(lane.units, getNow());
+      if (living.length !== lane.units.length) {
+        for (const unit of lane.units.filter((item) => !living.includes(item))) {
+          particles.burst({ x: unit.x, y: unit.y - 12, count: 8, speed: 35, color: lane.meta.light, size: 2, gravity: -20, decay: 2 });
+        }
+        lane.units = living;
+        placeSquad(lane);
+      }
+    }
     while (schedule.length && schedule[0].at <= timeNow) schedule.shift().run();
     schedule.sort((a, b) => a.at - b.at);
     if (hitStop > 0) { hitStop -= dt; particles.update(dt * 0.12); return; }
@@ -428,20 +430,37 @@ export function createArena(canvas, options = {}) {
       const lunge = unit.attackT * 6;
       const palette = unitPalette(unit.cls, unit.tier, meta.color, meta.dark);
       const x = Math.round(unit.x), y = Math.round(unit.y + bob - lunge);
-      ctx.fillStyle = "rgba(60, 40, 30, 0.18)"; ctx.fillRect(x - lane.px * 3, Math.round(unit.targetY) - 1, lane.px * 6, 2);
-      drawUnit(ctx, { cls: unit.cls, x, y, px: lane.px, palette, flip: unit.flip });
-      drawTierMark(ctx, { tier: unit.tier, x, y, px: lane.px });
+      ctx.fillStyle = "rgba(60, 40, 30, 0.18)"; ctx.fillRect(x - unit.px * 3, Math.round(unit.targetY) - 1, unit.px * 6, 2);
+      drawUnit(ctx, { cls: unit.cls, x, y, px: unit.px, palette, flip: unit.flip });
+      drawTierMark(ctx, { tier: unit.tier, x, y, px: unit.px });
+    }
+    for (const group of lane.groups || []) {
+      const active = group.units[0].ownerUid === lane.activeOwner && timeNow < lane.activeUntil;
+      const labelY = group.y - SPRITE_H * group.px - 10;
+      ctx.textAlign = "center";
+      ctx.font = `${active ? 900 : 700} 12px 'Pretendard', 'Noto Sans KR', sans-serif`;
+      ctx.lineWidth = 4; ctx.strokeStyle = "#fff7e8";
+      const name = group.units[0].ownerName || "학생";
+      ctx.strokeText(name, group.cx, labelY, group.width - 10);
+      ctx.fillStyle = active ? "#925d0d" : meta.dark;
+      ctx.fillText(name, group.cx, labelY, group.width - 10);
+      const remaining = group.units.map((unit) => Math.max(0, Math.ceil((unit.expiresAt - getNow()) / 1000)));
+      ctx.font = "700 11px sans-serif";
+      ctx.fillText(`${remaining.join(" · ")}초`, group.cx, group.y + 15, group.width - 10);
+      group.units.forEach((unit) => {
+        const width = group.px * 7;
+        ctx.fillStyle = "#d2c5ae"; ctx.fillRect(unit.targetX - width / 2, group.y + 2, width, 3);
+        ctx.fillStyle = unit.expiresAt - getNow() <= 5000 ? "#be582b" : meta.color;
+        ctx.fillRect(unit.targetX - width / 2, group.y + 2, width * clamp((unit.expiresAt - getNow()) / UNIT_LIFETIME_MS, 0, 1), 3);
+      });
     }
     if (lane.caption) {
       ctx.globalAlpha = clamp(lane.caption.life * 1.5, 0, 1);
-      ctx.font = "800 13px 'Pretendard', 'Noto Sans KR', sans-serif";
-      ctx.lineWidth = 4; ctx.strokeStyle = "rgba(255,250,240,0.95)"; ctx.strokeText(lane.caption.text, cx, GROUND_Y - lane.px * 9 - SPRITE_H * lane.px - 18);
-      ctx.fillStyle = meta.dark; ctx.fillText(lane.caption.text, cx, GROUND_Y - lane.px * 9 - SPRITE_H * lane.px - 18);
+      ctx.font = "900 16px 'Pretendard', 'Noto Sans KR', sans-serif";
+      ctx.lineWidth = 4; ctx.strokeStyle = "#fffaf0";
+      ctx.strokeText(lane.caption.text, cx, 67, lane.laneWidth - 16);
+      ctx.fillStyle = meta.dark; ctx.fillText(lane.caption.text, cx, 67, lane.laneWidth - 16);
       ctx.globalAlpha = 1;
-    }
-    if (lane.crowd > 0) {
-      ctx.fillStyle = meta.dark; ctx.font = "800 11px sans-serif";
-      ctx.fillText(`+${lane.crowd} 응원단`, cx, GROUND_Y + 34);
     }
   }
 
@@ -568,3 +587,4 @@ export function createArena(canvas, options = {}) {
     destroy() { this.stop(); particles.clear(); projectiles.length = 0; schedule.length = 0; floaters.length = 0; shards.length = 0; rings.length = 0; lanes = []; laneById = new Map(); },
   };
 }
+
