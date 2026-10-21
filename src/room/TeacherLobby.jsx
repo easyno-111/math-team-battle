@@ -3,8 +3,9 @@ import { teamLabel } from "../game/teams";
 import RoomQrCode from "../components/RoomQrCode";
 import { buildJoinUrl } from "./roomUtils";
 import teacherLobbyBg from "../assets/game/teacher-lobby.webp";
+import RemoveParticipantButton from "./RemoveParticipantButton";
 
-function TeamPanel({ team, participants, teamOptions, onMove }) {
+function TeamPanel({ team, participants, teamOptions, onMove, onRemove, busy }) {
   return (
     <div className={`teacher-team-panel team-${team.toLowerCase()}`}>
       <div className="teacher-team-heading">
@@ -16,9 +17,10 @@ function TeamPanel({ team, participants, teamOptions, onMove }) {
           <div className={`participant-chip ${participant.online === false ? "offline" : ""}`} key={participant.id}>
             <span className="participant-dot" />
             <div className="participant-chip-main"><strong>{participant.name}</strong><small>{participant.online === false ? "오프라인" : "접속 중"}</small></div>
-            <select className="participant-team-select" value={participant.team} onChange={(e) => onMove(participant.id, e.target.value)} aria-label={`${participant.name} 팀 이동`}>
+            <select className="participant-team-select" disabled={busy} value={participant.team} onChange={(e) => onMove(participant.id, e.target.value)} aria-label={`${participant.name} 팀 이동`}>
               {teamOptions.map((id) => <option value={id} key={id}>{id}팀</option>)}
             </select>
+            <RemoveParticipantButton participant={participant} busy={busy} onRemove={onRemove} />
           </div>
         ))}
       </div>
@@ -26,7 +28,7 @@ function TeamPanel({ team, participants, teamOptions, onMove }) {
   );
 }
 
-export default function TeacherLobby({ room, roomCode, teams, participants, byTeam, busy, message, onToggleLock, onMove, onStart, onClose, onNotify }) {
+export default function TeacherLobby({ room, roomCode, teams, participants, byTeam, busy, message, onToggleLock, onMove, onRemove, onStart, onClose, onNotify }) {
   const [qrLarge, setQrLarge] = useState("");
   const [closing, setClosing] = useState(false);
   const joinUrl = buildJoinUrl(roomCode);
@@ -58,7 +60,7 @@ export default function TeacherLobby({ room, roomCode, teams, participants, byTe
 
       <div className={`teacher-team-grid team-count-${teams.length}`}>
         <div className="teacher-team-panels-wrap">
-          {teams.map((team) => <TeamPanel key={team} team={team} participants={byTeam[team] || []} teamOptions={teams} onMove={onMove} />)}
+          {teams.map((team) => <TeamPanel key={team} team={team} participants={byTeam[team] || []} teamOptions={teams} onMove={onMove} onRemove={onRemove} busy={busy || room.status === "starting"} />)}
         </div>
         <div className="qr-center-column">
           <RoomQrCode joinUrl={joinUrl} roomCode={roomCode} onOpenLarge={setQrLarge} />

@@ -8,6 +8,7 @@ import { CHOICE_LABELS } from "../game/questions";
 import { formatRemaining } from "../hooks/useNow";
 import { useBattleClock } from "../hooks/useBattleClock";
 import { rankMembers } from "../room/roomUtils";
+import { participantAccess } from "../room/moderation";
 import studentLobbyBg from "../assets/game/student-lobby.webp";
 import battleArenaBg from "../assets/game/battle-arena.webp";
 import MathText from "./MathText";
@@ -57,6 +58,23 @@ export default function StudentLobby({ initialRoomCode = "", version }) {
     if (!session || !studentRealtime || !studentUser) return undefined;
     return onValue(ref(studentRealtime, `rooms/${session.roomCode}`), (snapshot) => {
       const value = snapshot.val();
+      const access = participantAccess(value, session.uid);
+      if (access === "removed" || access === "missing") {
+        // Do not call leaveRoom: its presence write would target a deleted member.
+        sessionStorage.removeItem(SESSION_KEY);
+        localStorage.removeItem(SESSION_KEY);
+        window.clearTimeout(feedbackTimer.current);
+        submittedNonce.current = "";
+        lastQuestionId.current = "";
+        setSession(null);
+        setRoom(null);
+        setRoomMissing(false);
+        setSelectedChoice("");
+        setSubmitting(false);
+        setFeedback(null);
+        setError(access === "removed" ? "선생님이 이 기기의 참가를 종료했어요. 다른 방에 입장하거나 선생님께 문의해주세요." : "참가 기록이 삭제되었어요. 선생님께 확인한 뒤 다시 입장해주세요.");
+        return;
+      }
       setRoom(value);
       setRoomMissing(!value);
       const state = value?.playerStates?.[session.uid];
@@ -119,6 +137,7 @@ export default function StudentLobby({ initialRoomCode = "", version }) {
       const firebaseUser = studentAuth.currentUser || (await signInAnonymously(studentAuth)).user;
       const roomData = (await get(ref(studentRealtime, `rooms/${cleanCode}`))).val();
       if (!roomData) return setError("해당 게임방을 찾을 수 없습니다.");
+      if (participantAccess(roomData, firebaseUser.uid) === "removed") return setError("선생님이 이 기기를 강퇴한 방입니다. 선생님께 문의해주세요.");
       const participantRef = ref(studentRealtime, `rooms/${cleanCode}/participants/${firebaseUser.uid}`);
       const existing = (await get(participantRef)).val();
       if (!existing && roomData.status !== "waiting") return setError("지금은 학생 입장이 마감된 방입니다.");
@@ -152,7 +171,7 @@ export default function StudentLobby({ initialRoomCode = "", version }) {
   };
 
   const submitChoice = async (choice) => {
-    if (!session || !studentRealtime || status !== "playing" || !myState?.currentQuestion || submitting || feedback) return;
+    if (!session || !me || room?.removedParticipants?.[session.uid] || !studentRealtime || status !== "playing" || !myState?.currentQuestion || submitting || feedback) return;
     if (Number(myState.lockedUntil || 0) > Date.now()) return;
     const offered = Array.isArray(myState.currentQuestion.choices) ? myState.currentQuestion.choices : [];
     if (!offered.includes(choice)) return setError("보기를 다시 선택해주세요.");

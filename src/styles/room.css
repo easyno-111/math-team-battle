@@ -710,3 +710,11 @@
 
 .team-rank-person .match-owner-units { display: flex; flex-wrap: wrap; gap: 4px 8px; white-space: normal; }
 .match-owner-units > span { font-variant-numeric: tabular-nums; }
+.participant-chip, .match-student-row { flex-wrap: wrap; }
+.participant-remove-controls { flex: 0 0 100%; display: flex; justify-content: flex-end; min-width: 0; }
+.participant-remove-controls button { min-height: 32px; padding: 4px 10px; border: 1px solid #e5d0d3; border-radius: 8px; font-size: 12px; background: #fff; color: #6b5261; }
+.participant-remove-controls .participant-remove-button { color: #a34150; background: #fff1f2; }
+.participant-remove-confirm { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; width: 100%; }
+.participant-remove-confirm > span { flex: 1 0 100%; white-space: normal; overflow-wrap: anywhere; font-size: 12px; color: #8d4651; }
+.participant-remove-controls button:disabled { opacity: 0.6; }
+@media (pointer: coarse) { .participant-remove-controls button { min-height: 44px; } }

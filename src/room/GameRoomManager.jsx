@@ -11,6 +11,7 @@ import RoomSetup from "./RoomSetup";
 import TeacherLobby from "./TeacherLobby";
 import TeacherMatch from "./TeacherMatch";
 import { useBattleClock } from "../hooks/useBattleClock";
+import { removeParticipant, repairParticipants } from "./moderation";
 
 export default function GameRoomManager({ user, questions, onGoQuestionBank }) {
   const { getNow } = useBattleClock(adminRealtime);
@@ -27,6 +28,7 @@ export default function GameRoomManager({ user, questions, onGoQuestionBank }) {
   const teamsMirror = useRef(null);
   const repairing = useRef(false);
   const finishing = useRef(false);
+  const removing = useRef(false);
 
   const questionMap = useMemo(() => new Map(questions.map((question) => [question.id, question])), [questions]);
   const playable = useMemo(() => questions.filter(isPlayableQuestion), [questions]);
@@ -133,10 +135,12 @@ export default function GameRoomManager({ user, questions, onGoQuestionBank }) {
       }
       if (participant.needsSync === true) updates[`participants/${participant.id}/needsSync`] = false;
     }
-    update(ref(adminRealtime, roomPath), updates)
+    // A repair selected before a kick must not recreate that student's state.
+    runTransaction(ref(adminRealtime, roomPath), (latest) =>
+      repairParticipants(latest, updates, user.uid), { applyLocally: false })
       .catch((error) => { console.error("학생 경기 상태 복구 오류:", error); })
       .finally(() => { repairing.current = false; });
-  }, [participants, room, roomPath, roomPool]);
+  }, [participants, room, roomPath, roomPool, user.uid]);
 
   // Clock. The gourd burst ends the game earlier; this handles the time limit.
   useEffect(() => {
@@ -178,6 +182,7 @@ export default function GameRoomManager({ user, questions, onGoQuestionBank }) {
   }
 
   async function moveParticipant(participantId, team) {
+    if (removing.current) return;
     if (!teams.includes(team)) return;
     try {
       await update(ref(adminRealtime, `${roomPath}/participants/${participantId}`), { team, lastSeen: serverTimestamp() });
@@ -187,7 +192,37 @@ export default function GameRoomManager({ user, questions, onGoQuestionBank }) {
     }
   }
 
+  async function kickParticipant(uid) {
+    if (!adminRealtime || !activeRoomCode || removing.current) return;
+    removing.current = true;
+    setBusy(true);
+    const name = roomRef.current?.participants?.[uid]?.name || "학생";
+    // Serialize with grading: a queued result must not restore deleted units.
+    const task = gradingQueue.current.then(async () => {
+      const result = await runTransaction(ref(adminRealtime, roomPath), (latest) =>
+        removeParticipant(latest, { uid, hostUid: user.uid, now: getNow() }), { applyLocally: false });
+      if (!result.committed) throw new Error("participant-removal-conflict");
+      roomRef.current = result.snapshot.val();
+      teamsMirror.current = null;
+      setRoom(result.snapshot.val());
+      // New submissions are already blocked by the tombstone and missing member.
+      await remove(ref(adminRealtime, `roomSubmissions/${activeRoomCode}/${uid}`));
+    });
+    gradingQueue.current = task.catch(() => {});
+    try {
+      await task;
+      notify(`${name} 학생을 강퇴하고 참가 기록을 정리했어요.`, 3500);
+    } catch (error) {
+      console.error("학생 강퇴 오류:", error);
+      notify("강퇴를 완료하지 못했습니다. 참가 목록을 확인한 뒤 다시 시도해주세요.");
+    } finally {
+      removing.current = false;
+      setBusy(false);
+    }
+  }
+
   async function startMatch() {
+    if (removing.current) return;
     if (!room || !adminRealtime) return;
     if (!roomPool.length) { notify("선택한 조건에 맞는 객관식 문제가 없어 경기를 시작할 수 없어요."); return; }
     const previous = room.status === "locked" ? "locked" : "waiting";
@@ -254,6 +289,7 @@ export default function GameRoomManager({ user, questions, onGoQuestionBank }) {
   }
 
   async function restartLobby() {
+    if (removing.current) return;
     if (!room) return;
     try {
       await update(ref(adminRealtime, roomPath), { status: "waiting", teams: null, playerStates: null, battleEvents: null, winner: null, tiedTeams: null, ranking: null, finishReason: null, scheduledEndAt: null });
@@ -308,6 +344,8 @@ export default function GameRoomManager({ user, questions, onGoQuestionBank }) {
         onResolveTie={resolveTie}
         onRestart={restartLobby}
         onClose={closeRoom}
+        onRemove={kickParticipant}
+        busy={busy}
       />
     );
   }
@@ -322,6 +360,7 @@ export default function GameRoomManager({ user, questions, onGoQuestionBank }) {
       message={message}
       onToggleLock={toggleLock}
       onMove={moveParticipant}
+      onRemove={kickParticipant}
       onStart={startMatch}
       onClose={closeRoom}
       onNotify={notify}
