@@ -3,9 +3,10 @@ import { get, onDisconnect, onValue, ref, runTransaction, serverTimestamp, set, 
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { prepareStudentAuthPersistence, realtimeReady, studentAuth, studentRealtime } from "../realtime";
 import { configuredTeams, TEAM_META, teamLabel, teamShort } from "../game/teams";
-import { hpRatio, nextTierGoal, normalizeTeams, rankTeams, TIER_LABELS, unitLabel, UNIT_META, WRONG_LOCK_MS } from "../game/rules";
+import { hpRatio, nextTierGoal, normalizeTeams, rankTeams, TIER_LABELS, unitLabel, activeUnits, PERSONAL_SQUAD_SIZE, WRONG_LOCK_MS } from "../game/rules";
 import { CHOICE_LABELS } from "../game/questions";
-import { formatRemaining, useNow } from "../hooks/useNow";
+import { formatRemaining } from "../hooks/useNow";
+import { useBattleClock } from "../hooks/useBattleClock";
 import { rankMembers } from "../room/roomUtils";
 import studentLobbyBg from "../assets/game/student-lobby.webp";
 import battleArenaBg from "../assets/game/battle-arena.webp";
@@ -60,12 +61,6 @@ export default function StudentLobby({ initialRoomCode = "", version }) {
       setRoomMissing(!value);
       const state = value?.playerStates?.[session.uid];
       const questionId = state?.currentQuestion?.id || "";
-      if (questionId && lastQuestionId.current !== questionId) {
-        lastQuestionId.current = questionId;
-        setSelectedChoice("");
-        setSubmitting(false);
-        submittedNonce.current = "";
-      }
       const result = state?.lastResult;
       if (result?.nonce && submittedNonce.current === result.nonce) {
         setSubmitting(false);
@@ -73,6 +68,12 @@ export default function StudentLobby({ initialRoomCode = "", version }) {
         submittedNonce.current = "";
         window.clearTimeout(feedbackTimer.current);
         feedbackTimer.current = window.setTimeout(() => { setFeedback(null); setSelectedChoice(""); }, result.correct ? 2200 : 1400);
+      }
+      if (questionId && lastQuestionId.current !== questionId) {
+        lastQuestionId.current = questionId;
+        setSelectedChoice("");
+        setSubmitting(false);
+        submittedNonce.current = "";
       }
     }, () => setError("대기실 정보를 불러오지 못했습니다."));
   }, [session, studentUser]);
@@ -289,7 +290,7 @@ export default function StudentLobby({ initialRoomCode = "", version }) {
 }
 
 export function StudentMatch({ room, roomCode, session, team, teams, myState, selectedChoice, submitChoice, submitting, feedback, error, version }) {
-  const now = useNow(true);
+  const { now } = useBattleClock(studentRealtime);
   const remaining = Number(room.scheduledEndAt || now) - now;
   const teamStates = normalizeTeams(room.teams);
   const teamRanks = rankMembers(Object.entries(room.participants || {}).map(([id, p]) => ({ id, ...p })).filter((p) => p.team === team), room.playerStates || {});
@@ -300,7 +301,7 @@ export function StudentMatch({ room, roomCode, session, team, teams, myState, se
   const lockedUntil = Number(myState?.lockedUntil || 0);
   const lockRemaining = now > 0 ? Math.max(0, Math.ceil((lockedUntil - now) / 1000)) : 0;
   const locked = lockRemaining > 0;
-  const mySquad = teamStates[team]?.squad || [];
+  const mySquad = now ? activeUnits(teamStates[team]?.squad, now).filter((unit) => unit.ownerUid === session.uid) : [];
 
   return (
     <main className="student-match-shell" style={{ backgroundImage: `url(${battleArenaBg})` }}>
@@ -362,7 +363,11 @@ export function StudentMatch({ room, roomCode, session, team, teams, myState, se
               <span>피해 <strong>{myState?.damage || 0}</strong></span>
               <span className={`student-combo-stat ${streak >= 2 ? "active" : ""}`}>연속 <strong>{streak}</strong></span>
             </div>
-            <div className="student-squad-line">우리 팀 출전 용사 {mySquad.length}명 · {Object.keys(UNIT_META).map((cls) => { const n = mySquad.filter((u) => u.cls === cls).length; return n ? `${UNIT_META[cls].label} ${n}` : null; }).filter(Boolean).join(" · ") || "아직 없음"}</div>
+            <div className="student-squad-line">
+              <strong>{session.name}의 용사 {mySquad.length} / {PERSONAL_SQUAD_SIZE}명</strong>
+              <span>내 정답에 내 용사만 행동 · 소환 후 45초 유지</span>
+              <div className="student-personal-units">{mySquad.map((unit) => <span key={unit.id}>{unitLabel(unit)} · {now ? Math.max(0, Math.ceil((unit.expiresAt - now) / 1000)) : "--"}초</span>)}{!mySquad.length && <span>정답을 맞히면 내 용사가 소환돼요.</span>}</div>
+            </div>
           </>
         ) : (
           <div className="student-question-loading"><span className="soft-spinner" /><strong>첫 문제를 준비하고 있어요.</strong></div>
@@ -374,7 +379,7 @@ export function StudentMatch({ room, roomCode, session, team, teams, myState, se
           <strong>{feedback.correct ? `${unitLabel(feedback.unit)} 소환!` : feedback.blocked ? "잠시 기다려요!" : feedback.streakBroken ? "연속 정답 끊김!" : "오답!"}</strong>
           <span>
             {feedback.correct
-              ? `${feedback.streak >= 2 ? `${feedback.streak}연속 · ` : ""}우리 박에 일제 사격 -${feedback.damage}${feedback.shieldUsed ? " (상대 수호에 막힘)" : ""}${feedback.heal ? ` · ${teamShort(feedback.heal.team)} 박 회복 +${feedback.heal.amount}` : ""}${feedback.shieldGiven ? ` · ${teamShort(feedback.shieldGiven.team)} 박 수호` : ""}${feedback.burst ? " · 박이 터졌어요!" : ""}`
+              ? `${feedback.streak >= 2 ? `${feedback.streak}연속 · ` : ""}내 용사 ${feedback.actingUnits?.length || 1}명 출전 -${feedback.damage}${feedback.shieldUsed ? " (상대 수호에 막힘)" : ""}${feedback.heal ? ` · ${teamShort(feedback.heal.team)} 박 회복 +${feedback.heal.amount}` : ""}${feedback.shieldGiven ? ` · ${teamShort(feedback.shieldGiven.team)} 박 수호` : ""}${feedback.burst ? " · 박이 터졌어요!" : ""}`
               : feedback.blocked ? "아직 대기 시간이 남아 있어요." : "찍기 방지를 위해 10초 동안 보기를 선택할 수 없어요."}
           </span>
         </div>
@@ -383,3 +388,4 @@ export function StudentMatch({ room, roomCode, session, team, teams, myState, se
     </main>
   );
 }
+

@@ -601,3 +601,7 @@
 @media (max-width: 420px) {
   .student-team-hp-list.compact, .student-team-hp-list.compact.team-count-3 { grid-template-columns: 1fr 1fr; }
 }
+
+.student-squad-line { display: grid; gap: 6px; }
+.student-personal-units { display: flex; flex-wrap: wrap; gap: 6px; }
+.student-personal-units > span { padding: 4px 8px; border-radius: 6px; background: #fff4dc; color: #5b452c; font-variant-numeric: tabular-nums; }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { configuredTeams, TEAM_META } from "../game/teams";
-import { BASE_DAMAGE, createTeamState, resolveVolley, summonUnit } from "../game/rules";
+import { BASE_DAMAGE, createTeamState, resolveVolley, summonUnit, UNIT_LIFETIME_MS } from "../game/rules";
 import BattleArena from "../battle/BattleArena";
 import "../styles/base.css";
 
@@ -29,9 +29,12 @@ export default function ArenaPreview() {
     setTeams((current) => {
       if (!current[team] || current[team].hp <= 0 || Object.values(current).some((state) => state.hp <= 0)) return current;
       const streak = forcedStreak ?? (streaks.current[team] = (streaks.current[team] || 0) + (Math.random() < 0.75 ? 1 : -(streaks.current[team] || 0)));
-      const unit = summonUnit(Math.max(1, streak));
-      const volley = resolveVolley({ teams: current, teamId: team, difficulty: DIFFS[Math.floor(Math.random() * DIFFS.length)], unit });
-      const event = { at: Date.now(), team, attackerUid: `demo-${team}`, attackerName: NAMES[Math.floor(Math.random() * NAMES.length)], unit, streak: Math.max(1, streak), damage: volley.damage, shieldUsed: volley.shieldUsed, heal: volley.heal, shieldGiven: volley.shieldGiven, hpAfter: volley.hpAfter, burst: volley.burst };
+      const now = Date.now();
+      const nameIndex = Math.floor(Math.random() * NAMES.length);
+      const ownerUid = `demo-${team}-${nameIndex}`;
+      const unit = { ...summonUnit(Math.max(1, streak)), id: crypto.randomUUID(), ownerUid, ownerName: NAMES[nameIndex], spawnedAt: now, expiresAt: now + UNIT_LIFETIME_MS };
+      const volley = resolveVolley({ teams: current, teamId: team, difficulty: DIFFS[Math.floor(Math.random() * DIFFS.length)], unit, now });
+      const event = { at: now, team, attackerUid: ownerUid, attackerName: unit.ownerName, unit, actingUnits: volley.actingUnits, streak: Math.max(1, streak), damage: volley.damage, shieldUsed: volley.shieldUsed, heal: volley.heal, shieldGiven: volley.shieldGiven, hpAfter: volley.hpAfter, burst: volley.burst };
       setEvents((list) => ({ ...list, [`${Date.now()}-${Math.random().toString(36).slice(2, 7)}`]: event }));
       return volley.teams;
     });
@@ -65,3 +68,4 @@ export default function ArenaPreview() {
     </main>
   );
 }
+

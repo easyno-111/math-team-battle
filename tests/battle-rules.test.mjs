@@ -1,14 +1,18 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  BASE_DAMAGE, MAX_SHIELD, SHIELD_FACTOR, SQUAD_SIZE, UNIT_CLASSES, UNIT_META,
+  BASE_DAMAGE, MAX_SHIELD, SHIELD_FACTOR, PERSONAL_SQUAD_SIZE, UNIT_CLASSES, UNIT_META,
   createTeamState, finishByTime, gourdMaxHp, nextTierGoal, normalizeTeamState, pickRivalTeam,
-  rankTeams, resolveVolley, rollUnitClass, summonUnit, tierForStreak, unitPower,
+  rankTeams, resolveVolley as resolveOwnedVolley, rollUnitClass, summonUnit, tierForStreak, unitPower,
 } from '../src/game/rules.js';
 
 const teams = (count = 2, members = 5, hpPerMember = 150) =>
   Object.fromEntries(['A', 'B', 'C', 'D'].slice(0, count).map((id) => [id, createTeamState(members, hpPerMember)]));
-const sequence = (...values) => { let i = 0; return () => values[i++ % values.length]; };
+let summonId = 0;
+const resolveVolley = ({ unit, ...args }) => resolveOwnedVolley({
+  ...args, now: 1000,
+  unit: { id: `test-${++summonId}`, ownerUid: 's1', ownerName: '민수', spawnedAt: 1000, expiresAt: 46000, ...unit },
+});
 
 test('gourd hp scales with members and the teacher setting so uneven teams stay fair', () => {
   assert.equal(gourdMaxHp(5, 150), 750);
@@ -35,7 +39,7 @@ test('summon roll follows weights and covers every class', () => {
   assert.deepEqual(summonUnit(6, () => 0), { cls: 'warrior', tier: 2 });
 });
 
-test('a volley adds the new unit, fires the whole squad and keeps the squad bounded', () => {
+test('a volley adds the new unit, fires the personal squad and keeps it bounded', () => {
   let state = teams();
   const unit = { cls: 'archer', tier: 1 };
   const first = resolveVolley({ teams: state, teamId: 'A', difficulty: '보통', unit });
@@ -43,11 +47,11 @@ test('a volley adds the new unit, fires the whole squad and keeps the squad boun
   assert.equal(first.teams.A.hp, 750 - first.damage);
   assert.equal(first.teams.B.hp, 750, 'rival untouched by attackers');
   state = first.teams;
-  for (let i = 0; i < SQUAD_SIZE + 3; i += 1) state = resolveVolley({ teams: state, teamId: 'A', difficulty: '쉬움', unit }).teams;
-  assert.equal(state.A.squad.length, SQUAD_SIZE);
-  assert.equal(state.A.summoned, SQUAD_SIZE + 4);
+  for (let i = 0; i < PERSONAL_SQUAD_SIZE + 3; i += 1) state = resolveVolley({ teams: state, teamId: 'A', difficulty: '쉬움', unit }).teams;
+  assert.equal(state.A.squad.length, PERSONAL_SQUAD_SIZE);
+  assert.equal(state.A.summoned, PERSONAL_SQUAD_SIZE + 4);
   const full = resolveVolley({ teams: state, teamId: 'A', difficulty: '쉬움', unit });
-  assert.equal(full.damage, BASE_DAMAGE.쉬움 + SQUAD_SIZE * unitPower(unit), 'only the squad fires, not every unit ever summoned');
+  assert.equal(full.damage, BASE_DAMAGE.쉬움 + PERSONAL_SQUAD_SIZE * unitPower(unit), 'only the squad fires, not every unit ever summoned');
 });
 
 test('reinforced and elite summons raise base damage and unit power', () => {
@@ -106,3 +110,4 @@ test('states read back from Firebase without a squad array are normalized', () =
   assert.equal(normalized.hp, 40);
   assert.equal(normalized.shield, 0);
 });
+

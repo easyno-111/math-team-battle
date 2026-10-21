@@ -1,7 +1,7 @@
 // Turns one student submission into a Realtime Database multi-path update.
 // Paths are relative to rooms/{code}; the caller prefixes them and clears the submission.
 import { chooseNextQuestion, correctAnswerOf, normalizeChoice, publicQuestion } from "./questions.js";
-import { BASE_DAMAGE, resolveVolley, summonUnit, WRONG_LOCK_MS } from "./rules.js";
+import { BASE_DAMAGE, resolveVolley, summonUnit, UNIT_LIFETIME_MS, WRONG_LOCK_MS } from "./rules.js";
 
 export function initialPlayerState(question, random = Math.random) {
   return {
@@ -53,14 +53,22 @@ export function judgeSubmission({ room, teams, uid, submission, question, pool, 
   }
 
   const streak = streakBefore + 1;
-  const unit = summonUnit(streak, random);
+  const unit = {
+    ...summonUnit(streak, random),
+    id: `${uid}:${submission.nonce}`,
+    ownerUid: uid,
+    ownerName: participant.name || "학생",
+    spawnedAt: now,
+    expiresAt: now + UNIT_LIFETIME_MS,
+  };
   const difficulty = question.difficulty in BASE_DAMAGE ? question.difficulty : "보통";
-  const volley = resolveVolley({ teams, teamId: team, difficulty, unit });
+  const volley = resolveVolley({ teams, teamId: team, difficulty, unit, now });
   const next = chooseNextQuestion(pool, state, random);
   const result = {
     nonce: submission.nonce,
     correct: true,
     unit,
+    actingUnits: volley.actingUnits,
     streak,
     damage: volley.damage,
     shieldUsed: volley.shieldUsed,
@@ -75,6 +83,7 @@ export function judgeSubmission({ room, teams, uid, submission, question, pool, 
     attackerUid: uid,
     attackerName: participant.name || "학생",
     unit,
+    actingUnits: volley.actingUnits,
     streak,
     damage: volley.damage,
     shieldUsed: volley.shieldUsed,
@@ -104,3 +113,4 @@ export function judgeSubmission({ room, teams, uid, submission, question, pool, 
   }
   return { kind: "correct", updates, event, teams: volley.teams, burst: volley.burst };
 }
+

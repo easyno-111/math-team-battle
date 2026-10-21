@@ -5,16 +5,16 @@ import "./battle.css";
 // Only events newer than this on mount are replayed; older ones are already reflected in team state.
 const REPLAY_WINDOW_MS = 4000;
 
-export default function BattleArena({ teams, events, members, playing }) {
+export default function BattleArena({ teams, events, members, playing, getNow = Date.now }) {
   const canvasRef = useRef(null);
   const arenaRef = useRef(null);
   const seenRef = useRef(new Set());
   const mountedAtRef = useRef(0);
 
   useEffect(() => {
-    mountedAtRef.current = Date.now();
+    mountedAtRef.current = getNow();
     const canvas = canvasRef.current;
-    const arena = createArena(canvas, { reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches });
+    const arena = createArena(canvas, { getNow, reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches });
     arenaRef.current = arena;
     const observer = new ResizeObserver((entries) => {
       const width = entries[0]?.contentRect.width;
@@ -24,7 +24,7 @@ export default function BattleArena({ teams, events, members, playing }) {
     arena.resize(canvas.parentElement.clientWidth || 960);
     arena.start();
     return () => { observer.disconnect(); arena.destroy(); arenaRef.current = null; };
-  }, []);
+  }, [getNow]);
 
   useEffect(() => {
     arenaRef.current?.setTeams(teams || {}, members || {});
@@ -58,3 +58,4 @@ export default function BattleArena({ teams, events, members, playing }) {
     </div>
   );
 }
+
