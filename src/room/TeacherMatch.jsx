@@ -7,8 +7,9 @@ import { useBattleClock } from "../hooks/useBattleClock";
 import BattleArena from "../battle/BattleArena";
 import { rankMembers } from "./roomUtils";
 import battleArenaBg from "../assets/game/battle-arena.webp";
+import RemoveParticipantButton from "./RemoveParticipantButton";
 
-function TeamRoster({ team, participants, playerStates, teamState, now }) {
+function TeamRoster({ team, participants, playerStates, teamState, now, onRemove, busy }) {
   const ranked = rankMembers(participants, playerStates);
   const squad = now ? activeUnits(teamState?.squad, now) : [];
   const counts = squad.reduce((acc, unit) => { acc[unit.cls] = (acc[unit.cls] || 0) + 1; return acc; }, {});
@@ -36,6 +37,7 @@ function TeamRoster({ team, participants, playerStates, teamState, now }) {
                 </span>
               </div>
               <div className="match-student-stats"><b>{person.damage}</b><small>피해</small></div>
+              <RemoveParticipantButton participant={person} busy={busy} onRemove={onRemove} />
             </div>
           );
         })}
@@ -44,7 +46,7 @@ function TeamRoster({ team, participants, playerStates, teamState, now }) {
   );
 }
 
-export default function TeacherMatch({ room, roomCode, teams, participants, byTeam, message, onFinish, onResolveTie, onRestart, onClose }) {
+export default function TeacherMatch({ room, roomCode, teams, participants, byTeam, message, onFinish, onResolveTie, onRestart, onClose, onRemove, busy }) {
   const playing = room.status === "playing";
   const finished = room.status === "finished";
   const { now, getNow } = useBattleClock(adminRealtime);
@@ -97,12 +99,12 @@ export default function TeacherMatch({ room, roomCode, teams, participants, byTe
       <BattleArena key={room.matchId} teams={room.teams || {}} events={room.battleEvents} members={memberNames} playing={playing} getNow={getNow} />
 
       <div className={`match-roster-grid team-count-${teams.length}`}>
-        {teams.map((team) => <TeamRoster key={team} team={team} participants={byTeam[team] || []} playerStates={room.playerStates || {}} teamState={teamStates[team]} now={now} />)}
+        {teams.map((team) => <TeamRoster key={team} team={team} participants={byTeam[team] || []} playerStates={room.playerStates || {}} teamState={teamStates[team]} now={now} onRemove={onRemove} busy={busy} />)}
       </div>
 
       <div className="teacher-match-controls">
         {playing && <button type="button" className="match-finish-button" onClick={onFinish}>지금 경기 종료</button>}
-        {finished && <button type="button" className="match-finish-button" onClick={onRestart}>같은 학생으로 다시 하기</button>}
+        {finished && <button type="button" className="match-finish-button" disabled={busy} onClick={onRestart}>같은 학생으로 다시 하기</button>}
         {!closing ? (
           <button type="button" className="match-close-button" onClick={() => setClosing(true)}>방 닫기</button>
         ) : (

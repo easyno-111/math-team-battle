@@ -21,7 +21,7 @@ export function judgeSubmission({ room, teams, uid, submission, question, pool, 
   const participant = room?.participants?.[uid];
   const state = room?.playerStates?.[uid];
   const team = participant?.team;
-  if (!participant || !state || !question || !teams?.[team] || state.currentQuestion?.id !== submission?.questionId) {
+  if (room?.removedParticipants?.[uid] || !participant || !state || !question || !teams?.[team] || state.currentQuestion?.id !== submission?.questionId) {
     return { kind: "discard", updates: {} };
   }
 
