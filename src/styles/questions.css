@@ -1245,3 +1245,38 @@
 .import-file-label input { width: auto; min-height: 0; padding: 0; border: 0; background: transparent; font-size: 12px; }
 .import-file-label input::file-selector-button { padding: 9px 14px; border: 1px solid #e2ddea; border-radius: 12px; background: #fff; color: #5f5a70; font-weight: 750; cursor: pointer; }
 .excel-message.info { background: #f0edff; color: #7568aa; }
+
+.question-fold-actions .merge-groups-trigger { min-height: 36px; padding: 0 12px; border-radius: 10px; color: #346e65; background: #e9f5ef; border: 1px solid #c8e2d7; }
+.merge-groups-dialog { width: min(720px, calc(100% - 32px)); max-height: calc(100dvh - 40px); box-sizing: border-box; border: 1px solid #e3dbe7; border-radius: 20px; padding: 24px; background: #fffdf9; color: #544e60; overflow: auto; box-shadow: 0 24px 80px #28212a40; }
+.merge-groups-dialog::backdrop { background: #27233299; }
+.merge-groups-heading, .merge-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.merge-groups-heading h2 { margin: 10px 0 0; font-size: 22px; }
+.merge-groups-dialog p { font-size: 13px; line-height: 1.65; }
+.merge-field { display: grid; gap: 6px; margin: 12px 0; font-size: 13px; font-weight: 700; min-width: 0; }
+.merge-field input { min-width: 0; width: 100%; box-sizing: border-box; }
+.merge-group-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; max-height: 260px; overflow: auto; padding: 3px; }
+.merge-group-option { display: flex; flex-direction: row; align-items: center; gap: 8px; padding: 10px; border: 1px solid #e4dfe8; border-radius: 10px; background: #fff; min-width: 0; }
+.merge-group-option:has(input:checked) { background: #ecf6f0; border-color: #6ca493; }
+.merge-group-option input, .merge-mode input { padding: 0; min-height: 17px; width: 17px; height: 17px; flex: none; accent-color: #4e8a78; }
+.merge-group-option > span { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.merge-group-option small, .merge-group-option strong { display: block; }
+.merge-group-option small { font-size: 11px; color: #796f82; }
+.merge-group-option strong { font-size: 13px; }
+.merge-group-option b { font-size: 12px; white-space: nowrap; }
+.merge-selection-summary { font-weight: 700; color: #436f62; }
+.merge-mode { display: flex; gap: 8px 16px; flex-wrap: wrap; border: 0; padding: 0; margin: 18px 0 12px; }
+.merge-mode legend { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+.merge-mode label { display: flex; flex-direction: row; align-items: center; gap: 6px; font-size: 13px; }
+.merge-target-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.merge-actions { justify-content: flex-end; margin-top: 20px; }
+.merge-actions button { min-height: 42px; }
+.merge-source-summary { padding-left: 20px; max-height: 180px; overflow: auto; font-size: 13px; line-height: 1.8; overflow-wrap: anywhere; }
+.merge-target-summary { display: grid; gap: 6px; padding: 16px; border-radius: 12px; background: #ecf6f0; overflow-wrap: anywhere; }
+.merge-target-summary span { font-size: 12px; color: #5a786f; }
+.merge-target-summary strong { font-size: 17px; }
+.merge-target-summary b { font-size: 13px; }
+.merge-groups-dialog .merge-error { padding: 10px 12px; border-radius: 10px; background: #fff0ed; color: #9d403a; }
+@media (max-width: 540px) { .merge-groups-dialog { padding: 16px; } .merge-group-options, .merge-target-fields { grid-template-columns: 1fr; } .merge-actions button { flex: 1; } }
+
+.merge-groups-dialog form { gap: 0; }
+.question-fold-actions { flex-wrap: wrap; }

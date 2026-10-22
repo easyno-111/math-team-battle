@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { addDoc, collection, deleteDoc, doc, serverTimestamp, updateDoc, writeBatch } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, runTransaction, serverTimestamp, updateDoc, writeBatch } from "firebase/firestore";
 import { EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { CHOICE_LABELS, DIFFICULTIES, isMultipleChoiceQuestion, questionCategory, questionUnit } from "../game/questions";
@@ -8,6 +8,8 @@ import MathText from "../components/MathText";
 import QuestionImporter from "../components/QuestionImporter";
 import QuestionEditor from "./QuestionEditor";
 import { draftToPayload, validateDraft } from "./questionDraft";
+import MergeGroupsDialog from "./MergeGroupsDialog";
+import { groupKey, mergePatch } from "./mergeGroups";
 
 const BATCH_SIZE = 400;
 const ALL = "전체";
@@ -37,6 +39,8 @@ export default function QuestionBankPage({ user, questions, loadError, onSendToQ
   const [expanded, setExpanded] = useState(() => new Set());
   const [filters, setFilters] = useState({ search: "", category: ALL, unit: ALL, difficulty: ALL, enabled: ALL });
   const [deleteAll, setDeleteAll] = useState(null);
+  const [merging, setMerging] = useState(false);
+  const [mergeNotice, setMergeNotice] = useState("");
 
   const categories = useMemo(() => sortedUnique(questions.map(questionCategory)), [questions]);
   const allUnits = useMemo(() => sortedUnique(questions.map(questionUnit)), [questions]);
@@ -84,6 +88,19 @@ export default function QuestionBankPage({ user, questions, loadError, onSendToQ
   };
 
   const stamp = { updatedBy: user.uid, updatedAt: serverTimestamp() };
+
+  const commitMerge = async (changes, mode) => {
+    await runTransaction(db, async (transaction) => {
+      const refs = changes.map((change) => doc(db, "questions", change.id));
+      const snapshots = await Promise.all(refs.map((ref) => transaction.get(ref)));
+      // Read every document before any write; deleted or reclassified questions
+      // abort this chunk rather than silently overwriting another edit.
+      const patches = snapshots.map((snapshot, index) => mergePatch(snapshot.exists() ? snapshot.data() : null, changes[index], mode));
+      patches.forEach((patch, index) => {
+        if (patch) transaction.update(refs[index], { ...patch, updatedBy: user.uid, updatedAt: serverTimestamp() });
+      });
+    });
+  };
 
   const saveDraft = async (draft) => {
     const problem = validateDraft(draft);
@@ -225,12 +242,14 @@ export default function QuestionBankPage({ user, questions, loadError, onSendToQ
               <span>주제 <strong>{groups.length}</strong></span>
             </div>
             <div className="question-fold-actions">
+              <button type="button" className="merge-groups-trigger" onClick={() => setMerging(true)} disabled={!questions.length || saving || bulkBusy || Boolean(editingId) || Boolean(busyId)} title={editingId ? "수정 중인 문제를 저장하거나 취소한 뒤 분류를 합칠 수 있어요." : "여러 분야·주제를 하나로 합치기"}>분류 합치기</button>
               <button type="button" onClick={() => setExpanded(new Set(groups.map((g) => g.key)))} disabled={!groups.length}>전체 펼치기</button>
               <button type="button" onClick={() => setExpanded(new Set())} disabled={!groups.length}>전체 접기</button>
             </div>
           </div>
 
           {loadError && <p className="status-message" role="alert">{loadError}</p>}
+          {mergeNotice && <p className="status-message" role="status">{mergeNotice}</p>}
 
           {filtered.length > 0 && (
             <div className={`question-bulk-bar ${selected.size ? "has-selection" : ""}`}>
@@ -341,6 +360,13 @@ export default function QuestionBankPage({ user, questions, loadError, onSendToQ
 
       <QuestionImporter user={user} questions={questions} />
 
+      {merging && <MergeGroupsDialog questions={questions} initialCategory={filters.category === ALL ? "" : filters.category} initialSourceKeys={questions.filter((question) => selected.has(question.id)).map((question) => groupKey(questionCategory(question), questionUnit(question)))} onCommit={commitMerge} onClose={() => setMerging(false)} onMerged={(result) => {
+        setMergeNotice(`${result.completed}개 문제를 '${result.category}${result.mode === "unit" ? ` / ${result.unit}` : ""}' 분류로 합쳤습니다.`);
+        setFilters({ search: "", category: result.category, unit: result.mode === "unit" ? result.unit : ALL, difficulty: ALL, enabled: ALL });
+        setSelected(new Set());
+        setBulkDeleteConfirm(false);
+      }} />}
+
       {deleteAll && (
         <div className="delete-all-overlay" role="presentation" onMouseDown={() => !deleteAll.busy && setDeleteAll(null)}>
           <section className="delete-all-dialog" onMouseDown={(e) => e.stopPropagation()}>
@@ -365,3 +391,4 @@ export default function QuestionBankPage({ user, questions, loadError, onSendToQ
     </>
   );
 }
+
