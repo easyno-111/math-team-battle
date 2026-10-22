@@ -875,7 +875,7 @@
   line-height: 1;
 }
 
-.bulk-clear-button, .question-bulk-actions > button, .bulk-delete-confirm button {
+.bulk-clear-button, .question-bulk-actions > button, .bulk-category-editor button, .bulk-delete-confirm button {
   min-height: 32px;
   padding: 6px 10px;
   border: 1px solid #ded5e5;
@@ -886,7 +886,9 @@
   font-weight: 850;
 }
 
-.bulk-clear-button:hover:not(:disabled), .question-bulk-actions > button:hover:not(:disabled), .bulk-delete-confirm button:hover:not(:disabled) { transform: translateY(-1px); }
+.bulk-clear-button:hover:not(:disabled), .question-bulk-actions > button:hover:not(:disabled), .bulk-category-editor button:hover:not(:disabled), .bulk-delete-confirm button:hover:not(:disabled) { transform: translateY(-1px); }
+.bulk-category-editor button:focus-visible { outline: 3px solid #b7add9; outline-offset: 2px; }
+.bulk-category-editor button:disabled { opacity: .5; cursor: default; }
 .question-bulk-actions .bulk-enable-button { border-color: #cde4d8; background: #edf8f2; color: #5e8975; }
 .question-bulk-actions .bulk-disable-button { border-color: #e7d9c9; background: #fff7ed; color: #9b775d; }
 .question-bulk-actions .bulk-delete-button, .bulk-delete-confirm .confirm { border-color: #edcbcf; background: #fff1f3; color: #ab6670; }
@@ -1121,7 +1123,7 @@
 
 .bulk-category-editor input {
   width: 128px;
-  min-height: 31px;
+  min-height: 32px;
   padding: 6px 8px;
   border: 1px solid #ddd4e4;
   border-radius: 9px;
@@ -1131,7 +1133,6 @@
   font-weight: 750;
 }
 
-.bulk-category-editor button { min-height: 31px; }
 @media (max-width: 760px) {
   .bulk-category-editor { width: 100%; border-right: 0; padding-right: 0; }
   .bulk-category-editor input { flex: 1 1 auto; width: auto; }
